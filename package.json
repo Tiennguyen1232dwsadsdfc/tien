@@ -1,0 +1,12 @@
+{
+  "name": "chi-phi-marketing",
+  "version": "1.0.0",
+  "description": "Demo quản lý chi phí marketing: báo cáo ngày, ứng tiền, KPI, dashboard",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

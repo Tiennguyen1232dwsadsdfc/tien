@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quản Lý Chi Phí Marketing</title>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+</head>
+<body>
+
+<!-- ============ MÀN ĐĂNG NHẬP ============ -->
+<div id="login-screen" class="login-wrap hidden">
+  <div class="login-card">
+    <div class="login-logo">📊</div>
+    <h1>Quản Lý Chi Phí Marketing</h1>
+    <p class="login-sub">Báo cáo ngày · Ứng tiền · KPI · Dashboard</p>
+    <label>Bạn là ai?</label>
+    <select id="login-user"></select>
+    <label>Mật khẩu</label>
+    <input type="password" id="login-pass" placeholder="Mật khẩu (mặc định: 123456)" autocomplete="current-password">
+    <button id="login-btn" class="btn btn-primary btn-block">Đăng nhập</button>
+    <p id="login-error" class="form-error"></p>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app" class="app hidden">
+  <header class="topbar">
+    <div class="brand">📊 <span>Chi Phí MKT</span></div>
+    <nav class="tabs" id="main-tabs">
+      <button class="tab active" data-page="dashboard">Tổng quan</button>
+      <button class="tab" data-page="personal" id="tab-personal">Chi phí cá nhân</button>
+      <button class="tab" data-page="reports" id="tab-reports">Dữ liệu chi tiết</button>
+      <button class="tab" data-page="advances">Ứng tiền <span id="adv-badge" class="badge hidden"></span></button>
+      <button class="tab hidden" data-page="users" id="tab-users">Nhân sự</button>
+    </nav>
+    <div class="topbar-right">
+      <input type="month" id="month-picker" class="month-picker">
+      <div class="user-menu">
+        <span id="me-name"></span>
+        <button class="btn btn-ghost btn-sm" id="btn-changepass" title="Đổi mật khẩu">🔑</button>
+        <button class="btn btn-ghost btn-sm" id="btn-logout">Thoát</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="page-content"></main>
+</div>
+
+<!-- Modal chung -->
+<div id="modal-backdrop" class="modal-backdrop hidden">
+  <div class="modal" id="modal-box"></div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+<div id="chart-tooltip" class="chart-tooltip hidden"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

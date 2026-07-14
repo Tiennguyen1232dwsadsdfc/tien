@@ -1,0 +1,50 @@
+# 📊 Quản Lý Chi Phí Marketing
+
+Demo web app quản lý chi phí marketing cho team: **báo cáo ngày · ứng tiền · KPI · dashboard**.
+Toàn bộ dữ liệu lưu trong `localStorage` của trình duyệt (bản demo, không cần database).
+
+## Tính năng
+
+- **Đăng nhập theo người dùng** — mật khẩu mặc định `123456`, tự đổi được sau khi đăng nhập.
+- **Tổng quan (Dashboard)** — tổng chi phí, doanh thu, % CP/DT, số đơn, CPA; so sánh với tháng trước; biểu đồ chi phí & doanh thu theo ngày; chi phí theo kênh / nhân viên; tiến độ dùng ngân sách.
+- **Chi phí cá nhân** — chi phí theo từng tài khoản quảng cáo của mỗi nhân viên, KPI ngân sách còn lại.
+- **Dữ liệu chi tiết** — thêm / sửa / xóa báo cáo ngày (tài khoản, chi phí, doanh thu, số đơn, ghi chú), lọc theo nhân viên & kênh.
+- **Ứng tiền** — nhân viên gửi đề nghị, quản lý duyệt / từ chối (badge đếm số chờ duyệt), bảng đối soát đã ứng vs đã chi.
+- **Nhân sự (quản lý)** — thêm / xóa nhân sự, reset mật khẩu, quản lý tài khoản quảng cáo, đặt KPI ngân sách theo tháng.
+- Lọc mọi trang theo **tháng**; giao diện sáng / tối tự theo hệ điều hành.
+
+## Tài khoản demo
+
+| Người dùng | Vai trò | Mật khẩu |
+|---|---|---|
+| Quản lý | admin | `123456` |
+| Tiến, Hà, Minh | nhân viên | `123456` |
+
+Dữ liệu mẫu có sẵn cho tháng 6 và tháng 7/2026.
+
+## Chạy local
+
+```bash
+node server.js
+# mở http://localhost:3000
+```
+
+Không cần `npm install` — server không dùng dependency nào.
+
+## Deploy lên Render
+
+1. Tạo **Web Service** mới, trỏ vào repo này.
+2. Build Command: *(để trống)* — Start Command: `node server.js`.
+3. Xong. (Hoặc dùng **Static Site** với thư mục publish là `public/`.)
+
+## Cấu trúc
+
+```
+public/
+  index.html   — khung giao diện
+  style.css    — theme sáng/tối, token màu
+  app.js       — toàn bộ logic + dữ liệu mẫu (localStorage)
+server.js      — static server thuần Node
+```
+
+> Lưu ý: đây là bản demo — mật khẩu lưu dạng thường trong localStorage, không dùng cho dữ liệu thật.
