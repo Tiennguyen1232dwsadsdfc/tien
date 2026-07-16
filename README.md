@@ -34,9 +34,10 @@ Không cần `npm install` — server không dùng dependency nào.
 
 ## Deploy lên Render
 
-1. Tạo **Web Service** mới, trỏ vào repo này.
+1. Tạo **Web Service** mới (bắt buộc — KHÔNG dùng Static Site, vì tab Kết nối API
+   cần endpoint `/api/proxy` của `server.js`), trỏ vào repo này.
 2. Build Command: *(để trống)* — Start Command: `node server.js`.
-3. Xong. (Hoặc dùng **Static Site** với thư mục publish là `public/`.)
+3. Xong.
 
 ## Cấu trúc
 

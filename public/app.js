@@ -916,7 +916,12 @@ async function apiCall(path, data, method = 'POST') {
   }
   let json;
   try { json = JSON.parse(text); }
-  catch { throw new Error('Phản hồi không phải JSON: ' + text.slice(0, 200)); }
+  catch {
+    // Trang tĩnh (Static Site / bản demo artifact) không có /api/proxy → 404 dạng text
+    if (r.status === 404 || /not found/i.test(text) || text.trimStart().startsWith('<'))
+      throw new Error('Site này không có /api/proxy — cần chạy bản đầy đủ bằng "node server.js" (trên Render chọn Web Service, không dùng Static Site; bản demo xem trước cũng không gọi được API).');
+    throw new Error('Phản hồi không phải JSON: ' + text.slice(0, 200));
+  }
   if (!r.ok) throw new Error(json.error || json.message || ('HTTP ' + r.status));
   if (json && json.success === false) throw new Error(json.message || 'API trả về success=false');
   return json;
