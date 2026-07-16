@@ -118,7 +118,7 @@ function defaultApi() {
     token: '',
     idChiNhanh: '',
     contactPath: '/partner/api/Contact/GetContactByConditions',
-    orderPath: '/partner/api/ThuKhoTacNghiep/GetDonHangByConditions',
+    orderPath: '/partner/api/ThuKhoTacNghiep/GetOrderLogisticByConditions',
     contactKieuNgay: 'NgayTao',
     orderKieuNgay: 'DonHangNgayChot',
     userMap: {}, // userNameMarketing (API) -> userId (app)
@@ -131,6 +131,9 @@ function load() {
     if (raw) {
       state = JSON.parse(raw);
       if (!state.api) { state.api = defaultApi(); save(); } // dữ liệu cũ chưa có cấu hình API
+      if (state.api.orderPath === '/partner/api/ThuKhoTacNghiep/GetDonHangByConditions') {
+        state.api.orderPath = defaultApi().orderPath; save(); // sửa đường dẫn đoán sai ở bản trước
+      }
       return;
     }
   } catch (e) { /* localStorage bị chặn hoặc dữ liệu hỏng thì seed lại */ }
@@ -216,8 +219,11 @@ function niceMax(v) {
   return 10 * p;
 }
 
-/* Biểu đồ đường: series = [{name, color, values:[...]}], labels = ['01','02',...] */
-function lineChart(container, labels, series) {
+/* Biểu đồ đường: series = [{name, color, values:[...]}], labels = ['01','02',...]
+   opts.fmt / opts.fmtShort: định dạng giá trị (mặc định tiền VND) */
+function lineChart(container, labels, series, opts = {}) {
+  const fmt = opts.fmt || VND;
+  const fmtShort = opts.fmtShort || vndShort;
   const W = Math.max(320, container.clientWidth || 640), H = 240;
   const padL = 52, padR = 14, padT = 12, padB = 26;
   const iw = W - padL - padR, ih = H - padT - padB;
@@ -230,7 +236,7 @@ function lineChart(container, labels, series) {
   for (let g = 0; g <= 4; g++) {
     const gy = padT + ih * g / 4;
     svg += `<line x1="${padL}" y1="${gy}" x2="${W - padR}" y2="${gy}" stroke="${grid}" stroke-width="1"/>`;
-    svg += `<text x="${padL - 8}" y="${gy + 4}" text-anchor="end" font-size="10.5" fill="${mutedInk}" style="font-variant-numeric:tabular-nums">${esc(vndShort(maxV * (4 - g) / 4))}</text>`;
+    svg += `<text x="${padL - 8}" y="${gy + 4}" text-anchor="end" font-size="10.5" fill="${mutedInk}" style="font-variant-numeric:tabular-nums">${esc(fmtShort(maxV * (4 - g) / 4))}</text>`;
   }
   const step = Math.max(1, Math.ceil(labels.length / 8));
   labels.forEach((lb, i) => {
@@ -263,7 +269,7 @@ function lineChart(container, labels, series) {
     hair.setAttribute('visibility', 'visible');
     showTT(
       `<div class="tt-title">Ngày ${esc(labels[i])}</div>` +
-      series.map(s => `<div class="tt-row"><span><span class="swatch" style="background:${s.color}"></span> ${esc(s.name)}</span><span class="num">${esc(VND(s.values[i]))}</span></div>`).join(''),
+      series.map(s => `<div class="tt-row"><span><span class="swatch" style="background:${s.color}"></span> ${esc(s.name)}</span><span class="num">${esc(fmt(s.values[i]))}</span></div>`).join(''),
       e.clientX, e.clientY);
   });
   svgEl.addEventListener('mouseleave', () => { hair.setAttribute('visibility', 'hidden'); hideTT(); });
@@ -949,10 +955,17 @@ async function doSync() {
       idChiNhanh: a.idChiNhanh, keyWord: '', kieuNgay: a.contactKieuNgay, ...range,
     }, s => setStatus('Đang tải contact — ' + s));
 
-    setStatus('Đang tải đơn hàng…');
-    syncCache.orders = await fetchAllPages(a.orderPath, {
-      idChiNhanh: a.idChiNhanh, keyWord: '', kieuNgay: a.orderKieuNgay, ...range,
-    }, s => setStatus('Đang tải đơn hàng — ' + s));
+    // Đơn hàng lỗi thì vẫn tiếp tục: contact có sẵn các trường lgt* để suy ra đơn
+    try {
+      setStatus('Đang tải đơn hàng…');
+      syncCache.orders = await fetchAllPages(a.orderPath, {
+        idChiNhanh: a.idChiNhanh, keyWord: '', kieuNgay: a.orderKieuNgay, ...range,
+      }, s => setStatus('Đang tải đơn hàng — ' + s));
+      syncCache.ordersError = null;
+    } catch (err) {
+      syncCache.orders = [];
+      syncCache.ordersError = err.message;
+    }
 
     syncCache.loading = false;
     syncCache.status = '';
@@ -992,39 +1005,94 @@ function renderSync(el) {
     resultHTML = `<div class="card"><p class="card-title">Lỗi đồng bộ</p><p class="form-error" style="display:block">${esc(syncCache.error)}</p>
       <p class="muted" style="font-size:12.5px">Kiểm tra lại token, idChiNhanh và đường dẫn API (cột API trong tài liệu Google Sheet).</p></div>`;
   } else if (hasData) {
-    // Đơn theo nhân viên marketing (userNameMarketing) + ghép chi phí qua bảng map
-    const byMkt = groupCount(orders, o => o.userNameMarketing || o.userDisplayMarketing);
+    /* Chuẩn hoá đơn hàng theo response GetOrderLogisticByConditions:
+       tên user marketing nằm trong donHangLogisticInfo, tiền/trạng thái ở cấp ngoài.
+       Không có đơn từ API thì suy ra từ các trường lgt* của contact. */
+    const ordNorm = o => {
+      const i = o.donHangLogisticInfo || {};
+      return {
+        mktName: i.userDisplayMarketing || i.userNameMarketing || o.userDisplayMarketing || o.userNameMarketing || '—',
+        idContact: i.idContact || o.contactId || '',
+        chot: o.donHangTrangThaiChotDon === 1,
+        thuKhach: Number(o.donHangTienThuKhach) || 0,
+        ngayChot: String(o.donHangNgayChot || o.ngayTao || '').slice(0, 10),
+        trangThaiGH: o.giaoHangTrangThaiTen || i.giaoHangTenTrangThai || '—',
+      };
+    };
+    let ordersN = orders.map(ordNorm);
+    const contactsById = new Map(contacts.map(c => [c.id, c]));
+    // Ghép id user marketing (trên contact) với tên (trên đơn) qua idContact
+    const mktIdToName = new Map();
+    for (const o of ordersN) {
+      const c = contactsById.get(o.idContact);
+      if (c?.marketingUserId && o.mktName !== '—') mktIdToName.set(c.marketingUserId, o.mktName);
+    }
+    const nameOfMktId = id => mktIdToName.get(id) || (id ? id.slice(0, 8) + '…' : '—');
+    if (!ordersN.length) {
+      ordersN = contacts.filter(c => c.lgtIdDonHang).map(c => ({
+        mktName: nameOfMktId(c.marketingUserId),
+        idContact: c.id,
+        chot: c.lgtDonHangTrangThaiChotDon === 1,
+        thuKhach: Number(c.lgtDonHangTienThuKhach) || 0,
+        ngayChot: String(c.lgtDonHangNgayChot || '').slice(0, 10),
+        trangThaiGH: c.lgtGiaoHangTrangThaiTen || '—',
+      }));
+    }
+    const donChot = ordersN.filter(o => o.chot);
+    const revenue = sum(donChot, o => o.thuKhach);
+
+    // Gộp theo user marketing: data về (contact) + đơn chốt + doanh thu (đơn)
+    const byMkt = new Map();
+    const mktOf = name => {
+      let g = byMkt.get(name);
+      if (!g) { g = { data: 0, don: 0, dt: 0 }; byMkt.set(name, g); }
+      return g;
+    };
+    for (const c of contacts) mktOf(nameOfMktId(c.marketingUserId)).data++;
+    for (const o of donChot) { const g = mktOf(o.mktName); g.don++; g.dt += o.thuKhach; }
     const staff = state.users.filter(u => u.role === 'staff');
-    const mktRows = byMkt.map(([name, count]) => {
+    const mktRows = [...byMkt.entries()].sort((x, y) => y[1].data - x[1].data).map(([name, g]) => {
       const mappedId = a.userMap[name] || '';
       const spend = mappedId ? sum(monthRows.filter(r => r.userId === mappedId), r => r.spend) : 0;
       return `<tr>
         <td>${esc(name)}</td>
-        <td class="r">${count.toLocaleString('vi-VN')}</td>
+        <td class="r">${g.data.toLocaleString('vi-VN')}</td>
+        <td class="r">${g.don.toLocaleString('vi-VN')}</td>
+        <td class="r">${esc(pctStr(g.don, g.data))}</td>
+        <td class="r">${esc(VND(g.dt))}</td>
         <td><select data-map="${esc(name)}"><option value="">— chưa ghép —</option>${staff.map(u =>
           `<option value="${u.id}" ${mappedId === u.id ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select></td>
         <td class="r">${mappedId ? esc(VND(spend)) : '—'}</td>
-        <td class="r">${mappedId && count ? esc(VND(spend / count)) : '—'}</td>
+        <td class="r">${mappedId && g.data ? esc(VND(spend / g.data)) : '—'}</td>
+        <td class="r">${mappedId && g.don ? esc(VND(spend / g.don)) : '—'}</td>
+        <td class="r">${mappedId ? esc(pctStr(spend, g.dt)) : '—'}</td>
       </tr>`;
     }).join('');
 
     const bySource = groupCount(contacts, c => c.nguonDuLieu);
-    const byShip = groupCount(orders, o => o.giaoHangTenTrangThai);
+    const byShip = groupCount(ordersN, o => o.trangThaiGH);
     const sample = obj => obj ? `<details class="json-preview"><summary class="muted">Xem bản ghi mẫu (JSON)</summary><pre>${esc(JSON.stringify(obj, null, 2))}</pre></details>` : '';
 
     resultHTML = `
+      ${syncCache.ordersError ? `<div class="card"><p class="muted" style="margin:0">⚠ Không tải được API đơn hàng (${esc(syncCache.ordersError)}) — số đơn/doanh thu bên dưới suy ra từ trường lgt* của contact.</p></div>` : ''}
       <div class="tiles">
         ${tileHTML('Data về (contact)', contacts.length.toLocaleString('vi-VN'), null)}
-        ${tileHTML('Đơn hàng', orders.length.toLocaleString('vi-VN'), null)}
+        ${tileHTML('Đơn chốt', donChot.length.toLocaleString('vi-VN'),
+          { text: `tỷ lệ chốt ${pctStr(donChot.length, contacts.length)}`, cls: '' })}
+        ${tileHTML('Doanh thu (thu khách)', VND(revenue), null)}
         ${tileHTML('Chi phí tháng (app)', VND(totalSpend), null)}
         ${tileHTML('Chi phí / data', contacts.length ? VND(totalSpend / contacts.length) : '—', null)}
-        ${tileHTML('Chi phí / đơn', orders.length ? VND(totalSpend / orders.length) : '—', null)}
+        ${tileHTML('Chi phí / đơn chốt', donChot.length ? VND(totalSpend / donChot.length) : '—', null)}
       </div>
       <div class="card">
-        <p class="card-title">Đơn hàng theo nhân viên marketing <span class="muted">(ghép với nhân sự trong app để tính chi phí/đơn)</span></p>
+        <p class="card-title">Data về & đơn chốt theo ngày</p>
+        <div id="sync-daily-chart"></div>
+      </div>
+      <div class="card">
+        <p class="card-title">Theo user marketing <span class="muted">(ghép với nhân sự trong app để đối chiếu chi phí)</span></p>
         <div class="table-wrap"><table class="tbl">
-          <thead><tr><th>User marketing (API)</th><th class="r">Đơn</th><th>Ghép nhân sự app</th><th class="r">Chi phí tháng</th><th class="r">CP/đơn</th></tr></thead>
-          <tbody>${mktRows || '<tr><td colspan="5" class="empty">Không có đơn nào trong tháng này.</td></tr>'}</tbody>
+          <thead><tr><th>User marketing (API)</th><th class="r">Data về</th><th class="r">Đơn chốt</th><th class="r">Tỷ lệ chốt</th><th class="r">Doanh thu</th><th>Ghép nhân sự</th><th class="r">Chi phí</th><th class="r">CP/data</th><th class="r">CP/đơn</th><th class="r">% CP/DT</th></tr></thead>
+          <tbody>${mktRows || '<tr><td colspan="10" class="empty">Không có dữ liệu trong tháng này.</td></tr>'}</tbody>
         </table></div>
         ${sample(orders[0])}
       </div>
@@ -1049,6 +1117,28 @@ function renderSync(el) {
           </table></div>
         </div>
       </div>`;
+
+    // Vẽ biểu đồ ngày sau khi el.innerHTML gán xong (dựng chart cần element tồn tại)
+    syncCache._drawDaily = () => {
+      const box = $('#sync-daily-chart');
+      if (!box) return;
+      const [yy, mm] = month.split('-').map(Number);
+      const days = new Date(yy, mm, 0).getDate();
+      const labels = [], dataD = new Array(days).fill(0), donD = new Array(days).fill(0);
+      for (let d = 1; d <= days; d++) labels.push(pad2(d));
+      for (const c of contacts) {
+        const iso = String(c.ngayTao || '').slice(0, 10);
+        if (iso.startsWith(month)) dataD[Number(iso.slice(8)) - 1]++;
+      }
+      for (const o of donChot) {
+        if (o.ngayChot.startsWith(month)) donD[Number(o.ngayChot.slice(8)) - 1]++;
+      }
+      const fmtN = n => (Math.round(n) || 0).toLocaleString('vi-VN');
+      lineChart(box, labels, [
+        { name: 'Data về', color: cssVar('--s1'), values: dataD },
+        { name: 'Đơn chốt', color: cssVar('--s2'), values: donD },
+      ], { fmt: fmtN, fmtShort: fmtN });
+    };
   } else {
     resultHTML = '<div class="empty">Chưa có dữ liệu — nhập cấu hình rồi bấm "Đồng bộ".</div>';
   }
@@ -1083,6 +1173,8 @@ function renderSync(el) {
   bind('#api-orderpath', 'orderPath');
   bind('#api-contactkieu', 'contactKieuNgay');
   bind('#api-orderkieu', 'orderKieuNgay');
+
+  if (syncCache._drawDaily) { syncCache._drawDaily(); syncCache._drawDaily = null; }
 
   $('#btn-sync').onclick = doSync;
   $$('[data-map]', el).forEach(sel => sel.onchange = () => {

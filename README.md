@@ -11,7 +11,7 @@ Toàn bộ dữ liệu lưu trong `localStorage` của trình duyệt (bản dem
 - **Dữ liệu chi tiết** — thêm / sửa / xóa báo cáo ngày (tài khoản, chi phí, doanh thu, số đơn, ghi chú), lọc theo nhân viên & kênh.
 - **Ứng tiền** — nhân viên gửi đề nghị, quản lý duyệt / từ chối (badge đếm số chờ duyệt), bảng đối soát đã ứng vs đã chi.
 - **Nhân sự (quản lý)** — thêm / xóa nhân sự, reset mật khẩu, quản lý tài khoản quảng cáo, đặt KPI ngân sách theo tháng.
-- **Kết nối API Sandbox (quản lý)** — đồng bộ **data về** (`Contact/GetContactByConditions`) và **đơn hàng logistic** từ API đối tác `api.sandbox.com.vn` theo tháng; đối chiếu với chi phí trong app để tính **chi phí/data** và **chi phí/đơn**; ghép user marketing của API với nhân sự trong app; thống kê data theo nguồn, đơn theo trạng thái giao hàng. Server có sẵn endpoint `/api/proxy` chuyển tiếp request (tránh CORS) — chỉ nhận đường dẫn `/partner/api/...`.
+- **Kết nối API Sandbox (quản lý)** — đồng bộ **data về** (`Contact/GetContactByConditions`) và **đơn hàng logistic** (`ThuKhoTacNghiep/GetOrderLogisticByConditions`) từ API đối tác `api.sandbox.com.vn` theo tháng; đơn chốt (`donHangTrangThaiChotDon`), doanh thu thu khách (`donHangTienThuKhach`), tỷ lệ chốt; biểu đồ data về & đơn chốt theo ngày; đối chiếu với chi phí trong app: **chi phí/data**, **chi phí/đơn**, **% CP/DT** theo từng user marketing (ghép với nhân sự trong app); thống kê data theo nguồn, đơn theo trạng thái giao hàng. Nếu API đơn hàng lỗi vẫn suy ra đơn từ các trường `lgt*` của contact. Server có sẵn endpoint `/api/proxy` chuyển tiếp request (tránh CORS) — chỉ nhận đường dẫn `/partner/api/...`.
 - Lọc mọi trang theo **tháng**; giao diện sáng / tối tự theo hệ điều hành.
 
 ## Tài khoản demo
