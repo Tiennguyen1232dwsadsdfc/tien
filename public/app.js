@@ -892,14 +892,28 @@ const TRANG_THAI_IMEI = { 1: 'Đã nhập kho', 2: 'Chưa nhập kho', 3: 'Đã 
 
 let syncCache = { month: null, contacts: null, orders: null, error: null, loading: false, status: '' };
 
+/* Tài liệu Sandbox chỗ ghi "Authorization: Bearer eyJ…", chỗ lại dán JWT thô —
+   nên gửi nguyên văn token người dùng dán; nếu bị 401 thì tự thử dạng còn lại
+   (thêm/bỏ tiền tố Bearer) và ghi nhớ dạng chạy được. */
 async function apiCall(path, data, method = 'POST') {
   const a = state.api;
-  const r = await fetch('/api/proxy', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ base: a.base, path, token: a.token, data, method }),
-  });
-  const text = await r.text();
+  const send = async token => {
+    const r = await fetch('/api/proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ base: a.base, path, token, data, method }),
+    });
+    return { r, text: await r.text() };
+  };
+  let { r, text } = await send(a.token);
+  if (r.status === 401 && a.token) {
+    const toggled = /^Bearer\s+/i.test(a.token)
+      ? a.token.replace(/^Bearer\s+/i, '')
+      : 'Bearer ' + a.token;
+    const retry = await send(toggled);
+    if (retry.r.ok) { a.token = toggled; save(); }
+    ({ r, text } = retry);
+  }
   let json;
   try { json = JSON.parse(text); }
   catch { throw new Error('Phản hồi không phải JSON: ' + text.slice(0, 200)); }
@@ -1169,7 +1183,7 @@ function renderSync(el) {
             <button class="btn btn-sm" id="btn-load-branches" title="Gọi API LayListChiNhanh">⟳ Tải</button>
           </div>
         </div>
-        <div class="field full"><label>Token (Authorization)</label><input type="password" id="api-token" value="${esc(a.token)}" placeholder="Dán nguyên token trong tài liệu (JWT, không cần chữ Bearer)"></div>
+        <div class="field full"><label>Token (Authorization)</label><input type="password" id="api-token" value="${esc(a.token)}" placeholder="Dán token — có hay không có chữ Bearer đều được, app tự thử cả hai"></div>
         <div class="field full"><label>Đường dẫn API contact</label><input type="text" id="api-contactpath" value="${esc(a.contactPath)}"></div>
         <div class="field full"><label>Đường dẫn API đơn hàng</label><input type="text" id="api-orderpath" value="${esc(a.orderPath)}"></div>
         <div class="field"><label>Kiểu ngày lọc contact</label><select id="api-contactkieu">${kieuNgayOpts(a.contactKieuNgay)}</select></div>

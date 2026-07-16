@@ -52,7 +52,7 @@ server.js      — static server thuần Node + proxy /api/proxy tới API Sandb
 
 Đăng nhập bằng tài khoản quản lý → tab **Kết nối API**:
 
-1. Dán **token** (JWT trong tài liệu, gửi nguyên văn vào header `Authorization` — không thêm `Bearer`).
+1. Dán **token** trong tài liệu vào ô Token — dán cả cụm `Bearer eyJ…` hay chỉ phần `eyJ…` đều được, app gửi nguyên văn và nếu bị 401 sẽ tự thử dạng còn lại rồi ghi nhớ.
 2. Bấm **⟳ Tải** cạnh ô Chi nhánh — app gọi `common/LayListChiNhanh` và cho chọn chi nhánh từ dropdown (hoặc dán tay GUID).
 3. Chọn **kiểu ngày lọc** (`NgayTao`, `DonHangNgayChot`, `GiaoHangNgayGiaoHang`…) rồi bấm **Đồng bộ**.
 
