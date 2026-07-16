@@ -882,14 +882,22 @@ const KIEU_NGAY = [
   'GiaoHangNgayGiaoHang', 'GiaoHangTrangThaiNgayCapNhat', 'TrangThaiDoiSoatNgay',
 ];
 
+/* Các đường dẫn cố định theo tài liệu (không cần cấu hình) */
+const API_PATHS = {
+  chiNhanh: '/partner/api/common/LayListChiNhanh',        // GET
+  imei: '/partner/api/SanPhamImei/TimTheoDieuKien',       // POST
+  ghiAm: '/partner/api/TongDai/LayFileGhiAm',             // GET + body JSON (đi qua proxy)
+};
+const TRANG_THAI_IMEI = { 1: 'Đã nhập kho', 2: 'Chưa nhập kho', 3: 'Đã xuất kho', 4: 'Đang chuyển kho' };
+
 let syncCache = { month: null, contacts: null, orders: null, error: null, loading: false, status: '' };
 
-async function apiCall(path, data) {
+async function apiCall(path, data, method = 'POST') {
   const a = state.api;
   const r = await fetch('/api/proxy', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ base: a.base, path, token: a.token, data }),
+    body: JSON.stringify({ base: a.base, path, token: a.token, data, method }),
   });
   const text = await r.text();
   let json;
@@ -1149,10 +1157,21 @@ function renderSync(el) {
       <p class="card-title">Cấu hình kết nối <span class="muted">(lưu trên trình duyệt này)</span></p>
       <div class="form-grid">
         <div class="field"><label>Base URL</label><input type="text" id="api-base" value="${esc(a.base)}"></div>
-        <div class="field"><label>idChiNhanh <span class="muted">(lấy từ API LayListChiNhanh)</span></label><input type="text" id="api-chinhanh" value="${esc(a.idChiNhanh)}" placeholder="VD: 0ebc2083-d46e-4a39-…"></div>
-        <div class="field full"><label>Bearer token</label><input type="password" id="api-token" value="${esc(a.token)}" placeholder="Dán token (có hay không có chữ Bearer đều được)"></div>
+        <div class="field"><label>Chi nhánh <span class="muted">(idChiNhanh)</span></label>
+          <div style="display:flex;gap:6px">
+            ${a.branches?.length
+              ? `<select id="api-chinhanh-sel" style="flex:1">${
+                  (a.branches.some(b => b.id === a.idChiNhanh) || !a.idChiNhanh ? '' :
+                    `<option value="${esc(a.idChiNhanh)}" selected>${esc(a.idChiNhanh.slice(0, 12))}… (nhập tay)</option>`) +
+                  a.branches.map(b => `<option value="${esc(b.id)}" ${b.id === a.idChiNhanh ? 'selected' : ''}>${esc(b.ten)}</option>`).join('')
+                }</select>`
+              : `<input type="text" id="api-chinhanh" value="${esc(a.idChiNhanh)}" placeholder="Bấm nút tải, hoặc dán GUID" style="flex:1">`}
+            <button class="btn btn-sm" id="btn-load-branches" title="Gọi API LayListChiNhanh">⟳ Tải</button>
+          </div>
+        </div>
+        <div class="field full"><label>Token (Authorization)</label><input type="password" id="api-token" value="${esc(a.token)}" placeholder="Dán nguyên token trong tài liệu (JWT, không cần chữ Bearer)"></div>
         <div class="field full"><label>Đường dẫn API contact</label><input type="text" id="api-contactpath" value="${esc(a.contactPath)}"></div>
-        <div class="field full"><label>Đường dẫn API đơn hàng <span class="muted">(dán đúng URL từ tài liệu — cột API, dòng 6)</span></label><input type="text" id="api-orderpath" value="${esc(a.orderPath)}"></div>
+        <div class="field full"><label>Đường dẫn API đơn hàng</label><input type="text" id="api-orderpath" value="${esc(a.orderPath)}"></div>
         <div class="field"><label>Kiểu ngày lọc contact</label><select id="api-contactkieu">${kieuNgayOpts(a.contactKieuNgay)}</select></div>
         <div class="field"><label>Kiểu ngày lọc đơn hàng</label><select id="api-orderkieu">${kieuNgayOpts(a.orderKieuNgay)}</select></div>
       </div>
@@ -1162,12 +1181,36 @@ function renderSync(el) {
       <span class="spacer"></span>
       <button class="btn btn-primary" id="btn-sync" ${syncCache.loading ? 'disabled' : ''}>⟳ Đồng bộ ${esc(monthLabel(month))}</button>
     </div>
-    ${resultHTML}`;
+    ${resultHTML}
+    <div class="grid-2">
+      <div class="card">
+        <p class="card-title">Tra cứu IMEI kho <span class="muted">(SanPhamImei/TimTheoDieuKien)</span></p>
+        <div class="toolbar" style="margin-bottom:10px">
+          <input type="text" id="imei-kw" placeholder="IMEI / tên / mã sản phẩm" style="flex:1;min-width:140px">
+          <select id="imei-tt">
+            <option value="">Mọi trạng thái</option>
+            ${Object.entries(TRANG_THAI_IMEI).map(([v, t]) => `<option value="${v}">${esc(t)}</option>`).join('')}
+          </select>
+          <button class="btn btn-primary btn-sm" id="btn-imei">Tìm</button>
+        </div>
+        <div id="imei-results"><div class="empty">Nhập từ khóa rồi bấm Tìm.</div></div>
+      </div>
+      <div class="card">
+        <p class="card-title">Ghi âm cuộc gọi <span class="muted">(TongDai/LayFileGhiAm)</span></p>
+        <div class="toolbar" style="margin-bottom:10px">
+          <input type="tel" id="ga-phone" placeholder="SĐT khách hàng" style="flex:1;min-width:140px">
+          <select id="ga-type"><option value="SIM_SO">Tổng đài SIM số</option><option value="IP">Tổng đài IP</option></select>
+          <button class="btn btn-primary btn-sm" id="btn-ghiam">Tìm</button>
+        </div>
+        <div id="ga-results"><div class="empty">Nhập số điện thoại rồi bấm Tìm.</div></div>
+      </div>
+    </div>`;
 
   // Lưu cấu hình khi sửa
-  const bind = (id, key) => { $(id).onchange = e => { a[key] = e.target.value.trim(); save(); }; };
+  const bind = (id, key) => { const el2 = $(id); if (el2) el2.onchange = e => { a[key] = e.target.value.trim(); save(); }; };
   bind('#api-base', 'base');
   bind('#api-chinhanh', 'idChiNhanh');
+  bind('#api-chinhanh-sel', 'idChiNhanh');
   bind('#api-token', 'token');
   bind('#api-contactpath', 'contactPath');
   bind('#api-orderpath', 'orderPath');
@@ -1175,6 +1218,92 @@ function renderSync(el) {
   bind('#api-orderkieu', 'orderKieuNgay');
 
   if (syncCache._drawDaily) { syncCache._drawDaily(); syncCache._drawDaily = null; }
+
+  // Tải danh sách chi nhánh (GET LayListChiNhanh) → dropdown thay vì dán GUID
+  $('#btn-load-branches').onclick = async () => {
+    if (!a.token) { toast('Cần dán token trước'); return; }
+    const btn = $('#btn-load-branches');
+    btn.disabled = true; btn.textContent = '…';
+    try {
+      const res = await apiCall(API_PATHS.chiNhanh, null, 'GET');
+      const list = extractList(res).filter(b => b.suDung !== false);
+      if (!list.length) throw new Error('API không trả về chi nhánh nào');
+      a.branches = list.map(b => ({ id: b.id, ten: b.tenChiNhanh || b.id }));
+      if (!a.branches.some(b => b.id === a.idChiNhanh)) a.idChiNhanh = a.branches[0].id;
+      save();
+      toast(`Đã tải ${a.branches.length} chi nhánh`);
+      renderPage();
+    } catch (err) {
+      btn.disabled = false; btn.textContent = '⟳ Tải';
+      toast('Lỗi tải chi nhánh: ' + err.message);
+    }
+  };
+
+  // Tra cứu IMEI kho
+  $('#btn-imei').onclick = async () => {
+    const out = $('#imei-results');
+    if (!a.token) { toast('Cần dán token trước'); return; }
+    out.innerHTML = '<div class="empty">Đang tìm…</div>';
+    try {
+      const res = await apiCall(API_PATHS.imei, {
+        pageInfo: { page: 1, pageSize: 100 }, sorts: [],
+        keyword: $('#imei-kw').value.trim() || null,
+        maNhaCungCap: null,
+        trangThaiImei: Number($('#imei-tt').value) || null,
+        idNhomSanPham: null, idSanPhamCha: null, idSanPham: null, idKho: null,
+        idChiNhanh: a.idChiNhanh || null,
+      });
+      const list = extractList(res);
+      out.innerHTML = list.length ? `
+        <div class="table-wrap"><table class="tbl">
+          <thead><tr><th>Sản phẩm</th><th>IMEI</th><th>NCC</th><th>Trạng thái</th><th class="r">Ngày tạo</th></tr></thead>
+          <tbody>${list.map(x => `<tr>
+            <td>${esc(x.tenSanPham || '—')}<br><span class="muted" style="font-size:12px">${esc(x.ma || '')}</span></td>
+            <td class="num">${esc(x.imei || '—')}</td>
+            <td class="muted">${esc(x.maNhaCungCap || '—')}</td>
+            <td>${esc(x.trangThaiText || TRANG_THAI_IMEI[x.trangThai] || '—')}</td>
+            <td class="r num">${x.ngayTao ? esc(fmtDate(String(x.ngayTao).slice(0, 10))) : '—'}</td>
+          </tr>`).join('')}</tbody>
+        </table></div>
+        <p class="muted" style="font-size:12px;margin:8px 0 0">${list.length} bản ghi (tối đa 100/trang).</p>`
+        : '<div class="empty">Không tìm thấy IMEI nào.</div>';
+    } catch (err) {
+      out.innerHTML = `<p class="form-error" style="display:block;text-align:left">${esc(err.message)}</p>`;
+    }
+  };
+  $('#imei-kw').addEventListener('keydown', e => { if (e.key === 'Enter') $('#btn-imei').click(); });
+
+  // Tra cứu ghi âm cuộc gọi theo SĐT khách
+  $('#btn-ghiam').onclick = async () => {
+    const out = $('#ga-results');
+    const phone = $('#ga-phone').value.trim();
+    if (!a.token) { toast('Cần dán token trước'); return; }
+    if (!phone) { toast('Cần nhập số điện thoại khách'); return; }
+    out.innerHTML = '<div class="empty">Đang tìm…</div>';
+    try {
+      const res = await apiCall(API_PATHS.ghiAm, {
+        contactIds: [], donHangIds: [],
+        phoneCustomer: phone,
+        typeTongDai: $('#ga-type').value,
+        pageIndex: 1, pageSize: 100,
+      }, 'GET');
+      const list = extractList(res);
+      out.innerHTML = list.length ? `
+        <div class="table-wrap"><table class="tbl">
+          <thead><tr><th>Loại</th><th>Nhân viên</th><th>Nghe lại</th></tr></thead>
+          <tbody>${list.map(x => `<tr>
+            <td>${x.type === 'OUTGOING_CALL' ? 'Gọi đi' : x.type === 'INCOMING_CALL' ? 'Gọi đến' : esc(x.type || '—')}</td>
+            <td>${esc(x.ten || x.userName || '—')}<br><span class="muted" style="font-size:12px">${esc(x.hotline || '')}</span></td>
+            <td>${x.recordFile ? `<audio controls preload="none" src="${esc(x.recordFile)}" style="width:200px;height:32px"></audio>` : '—'}</td>
+          </tr>`).join('')}</tbody>
+        </table></div>
+        <p class="muted" style="font-size:12px;margin:8px 0 0">${list.length} cuộc gọi với số ${esc(phone)}.</p>`
+        : '<div class="empty">Không có ghi âm nào với số này.</div>';
+    } catch (err) {
+      out.innerHTML = `<p class="form-error" style="display:block;text-align:left">${esc(err.message)}</p>`;
+    }
+  };
+  $('#ga-phone').addEventListener('keydown', e => { if (e.key === 'Enter') $('#btn-ghiam').click(); });
 
   $('#btn-sync').onclick = doSync;
   $$('[data-map]', el).forEach(sel => sel.onchange = () => {

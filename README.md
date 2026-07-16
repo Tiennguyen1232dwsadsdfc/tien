@@ -52,11 +52,18 @@ server.js      — static server thuần Node + proxy /api/proxy tới API Sandb
 
 Đăng nhập bằng tài khoản quản lý → tab **Kết nối API**:
 
-1. Dán **Bearer token** và **idChiNhanh** (lấy từ API `LayListChiNhanh`).
-2. Kiểm tra 2 đường dẫn API (contact & đơn hàng) khớp với tài liệu — sửa được ngay trên form.
+1. Dán **token** (JWT trong tài liệu, gửi nguyên văn vào header `Authorization` — không thêm `Bearer`).
+2. Bấm **⟳ Tải** cạnh ô Chi nhánh — app gọi `common/LayListChiNhanh` và cho chọn chi nhánh từ dropdown (hoặc dán tay GUID).
 3. Chọn **kiểu ngày lọc** (`NgayTao`, `DonHangNgayChot`, `GiaoHangNgayGiaoHang`…) rồi bấm **Đồng bộ**.
 
 App tự lặp qua các trang (100 bản ghi/trang) cho cả tháng đang chọn. Cấu hình lưu trong
 localStorage của trình duyệt; token không gửi đi đâu ngoài API đối tác qua `/api/proxy`.
+
+Trong tab còn có 2 công cụ **tra cứu nhanh**:
+
+- **IMEI kho** (`SanPhamImei/TimTheoDieuKien`) — tìm theo IMEI / tên / mã sản phẩm, lọc theo trạng thái
+  (đã nhập kho, chưa nhập kho, đã xuất kho, đang chuyển kho).
+- **Ghi âm cuộc gọi** (`TongDai/LayFileGhiAm`) — nhập SĐT khách, chọn tổng đài SIM số / IP, nghe lại
+  file ghi âm ngay trong app. API này là GET kèm body JSON nên bắt buộc đi qua `/api/proxy`.
 
 > Lưu ý: đây là bản demo — mật khẩu lưu dạng thường trong localStorage, không dùng cho dữ liệu thật.

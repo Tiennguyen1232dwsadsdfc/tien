@@ -19,7 +19,9 @@ const MIME = {
   '.json': 'application/json; charset=utf-8',
 };
 
-/* Proxy: client POST { base, path, token, data } → forward POST tới API đối tác.
+/* Proxy: client POST { base, path, token, data, method } → forward tới API đối tác.
+   method: POST (mặc định) hoặc GET — API LayFileGhiAm dùng GET kèm body JSON,
+   trình duyệt không gửi được GET có body nên phải đi qua proxy này.
    Chỉ nhận đường dẫn /partner/api/... để không thành open proxy. */
 function handleProxy(req, res) {
   const json = (code, obj) => {
@@ -37,19 +39,21 @@ function handleProxy(req, res) {
     if (target.protocol !== 'https:') return json(400, { error: 'Chỉ hỗ trợ HTTPS' });
     if (!target.pathname.startsWith('/partner/api/')) return json(400, { error: 'Chỉ cho phép đường dẫn /partner/api/...' });
 
-    const reqBody = JSON.stringify(p.data ?? {});
-    const headers = {
-      'Content-Type': 'application/json',
-      'Accept': '*/*',
-      'Content-Length': Buffer.byteLength(reqBody),
-    };
-    if (p.token) headers['Authorization'] = 'Bearer ' + String(p.token).replace(/^Bearer\s+/i, '');
+    const method = p.method === 'GET' ? 'GET' : 'POST';
+    const reqBody = p.data == null ? '' : JSON.stringify(p.data);
+    const headers = { 'Accept': '*/*' };
+    if (reqBody) {
+      headers['Content-Type'] = 'application/json';
+      headers['Content-Length'] = Buffer.byteLength(reqBody);
+    }
+    // cURL mẫu của Sandbox dùng JWT thô (không có "Bearer ") — gửi nguyên văn token người dùng dán
+    if (p.token) headers['Authorization'] = String(p.token).trim();
 
     const upstream = https.request({
       hostname: target.hostname,
       port: target.port || 443,
       path: target.pathname + target.search,
-      method: 'POST',
+      method,
       headers,
     }, up => {
       let out = '';
