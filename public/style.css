@@ -375,6 +375,21 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
   box-shadow: var(--shadow);
 }
 
+/* ---------- Xem JSON mẫu (tab Kết nối API) ---------- */
+.json-preview { margin-top: 10px; }
+.json-preview summary { cursor: pointer; font-size: 12.5px; }
+.json-preview pre {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  max-height: 320px;
+  overflow: auto;
+}
+
 /* ---------- Empty ---------- */
 .empty { text-align: center; color: var(--muted); padding: 28px 10px; font-size: 13.5px; }
 

@@ -108,13 +108,31 @@ function seedState() {
     '2026-07': { 'u-tien': 150000000, 'u-ha': 120000000, 'u-minh': 80000000 },
   };
 
-  return { users, accounts, reports, advances, kpis, session: null, ui: { month: curMonth() } };
+  return { users, accounts, reports, advances, kpis, api: defaultApi(), session: null, ui: { month: curMonth() } };
+}
+
+/* Cấu hình kết nối API Sandbox (tab "Kết nối API") */
+function defaultApi() {
+  return {
+    base: 'https://api.sandbox.com.vn',
+    token: '',
+    idChiNhanh: '',
+    contactPath: '/partner/api/Contact/GetContactByConditions',
+    orderPath: '/partner/api/ThuKhoTacNghiep/GetDonHangByConditions',
+    contactKieuNgay: 'NgayTao',
+    orderKieuNgay: 'DonHangNgayChot',
+    userMap: {}, // userNameMarketing (API) -> userId (app)
+  };
 }
 
 function load() {
   try {
     const raw = localStorage.getItem(LS_KEY);
-    if (raw) { state = JSON.parse(raw); return; }
+    if (raw) {
+      state = JSON.parse(raw);
+      if (!state.api) { state.api = defaultApi(); save(); } // dữ liệu cũ chưa có cấu hình API
+      return;
+    }
   } catch (e) { /* localStorage bị chặn hoặc dữ liệu hỏng thì seed lại */ }
   state = seedState();
   save();
@@ -318,6 +336,7 @@ function enterApp() {
   const u = me();
   $('#me-name').textContent = `${u.name} · ${u.role === 'admin' ? 'Quản lý' : 'Nhân viên'}`;
   $('#tab-users').classList.toggle('hidden', !isAdmin());
+  $('#tab-sync').classList.toggle('hidden', !isAdmin());
   $('#month-picker').value = state.ui.month;
   currentPage = 'dashboard';
   setActiveTab();
@@ -347,6 +366,7 @@ function renderPage() {
     case 'reports':   renderReports(el);   break;
     case 'advances':  renderAdvances(el);  break;
     case 'users':     renderUsers(el);     break;
+    case 'sync':      renderSync(el);      break;
   }
 }
 
@@ -842,6 +862,234 @@ function accountsModal(userId) {
     });
   };
   render();
+}
+
+/* ---------------- Trang: Kết nối API Sandbox (admin) ----------------
+   Gọi qua /api/proxy của server để tránh CORS. Dùng 2 API trong tài liệu:
+   - Contact/GetContactByConditions  → data về trong tháng
+   - Danh sách đơn hàng logistic      → đơn hàng trong tháng (userNameMarketing)
+   Kết quả chỉ hiển thị/đối chiếu với chi phí, không ghi đè báo cáo. */
+
+const KIEU_NGAY = [
+  'NgayTao', 'SaleNgayNhanData', 'SaleTacNghiepNgayCapNhat', 'SaleTacNghiepTiepNgayBatDau',
+  'DonHangNgayChot', 'CareDonNgayNhan', 'CareDonNgayTacNghiep', 'NgayDangDon',
+  'GiaoHangNgayGiaoHang', 'GiaoHangTrangThaiNgayCapNhat', 'TrangThaiDoiSoatNgay',
+];
+
+let syncCache = { month: null, contacts: null, orders: null, error: null, loading: false, status: '' };
+
+async function apiCall(path, data) {
+  const a = state.api;
+  const r = await fetch('/api/proxy', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ base: a.base, path, token: a.token, data }),
+  });
+  const text = await r.text();
+  let json;
+  try { json = JSON.parse(text); }
+  catch { throw new Error('Phản hồi không phải JSON: ' + text.slice(0, 200)); }
+  if (!r.ok) throw new Error(json.error || json.message || ('HTTP ' + r.status));
+  if (json && json.success === false) throw new Error(json.message || 'API trả về success=false');
+  return json;
+}
+
+/* API có thể trả mảng trực tiếp hoặc bọc trong data/items — thử lần lượt */
+function extractList(res) {
+  if (Array.isArray(res)) return res;
+  for (const k of ['data', 'items', 'result', 'records', 'listData']) {
+    if (Array.isArray(res?.[k])) return res[k];
+  }
+  if (Array.isArray(res?.data?.items)) return res.data.items;
+  if (res?.data && typeof res.data === 'object' && !Array.isArray(res.data)) {
+    for (const v of Object.values(res.data)) if (Array.isArray(v)) return v;
+  }
+  return [];
+}
+
+async function fetchAllPages(path, bodyBase, onProgress, maxPages = 30) {
+  const all = [];
+  for (let page = 1; page <= maxPages; page++) {
+    onProgress(`trang ${page}…`);
+    const res = await apiCall(path, { ...bodyBase, pageInfo: { page, pageSize: 100 }, sorts: [] });
+    const list = extractList(res);
+    all.push(...list);
+    if (list.length < 100) break;
+  }
+  return all;
+}
+
+function monthRange(month) {
+  const [y, m] = month.split('-').map(Number);
+  const lastDay = new Date(y, m, 0).getDate();
+  return {
+    tuNgay: `${month}-01T00:00:00+07:00`,
+    denNgay: `${month}-${pad2(lastDay)}T23:59:59+07:00`,
+  };
+}
+
+async function doSync() {
+  const a = state.api;
+  if (!a.idChiNhanh || !a.token) {
+    toast('Cần nhập token và idChiNhanh trước khi đồng bộ');
+    return;
+  }
+  const month = state.ui.month;
+  const range = monthRange(month);
+  syncCache = { month, contacts: null, orders: null, error: null, loading: true, status: 'Bắt đầu…' };
+  renderPage();
+  const setStatus = s => {
+    syncCache.status = s;
+    const el = $('#sync-status');
+    if (el) el.textContent = s;
+  };
+  try {
+    setStatus('Đang tải contact (data về)…');
+    syncCache.contacts = await fetchAllPages(a.contactPath, {
+      idChiNhanh: a.idChiNhanh, keyWord: '', kieuNgay: a.contactKieuNgay, ...range,
+    }, s => setStatus('Đang tải contact — ' + s));
+
+    setStatus('Đang tải đơn hàng…');
+    syncCache.orders = await fetchAllPages(a.orderPath, {
+      idChiNhanh: a.idChiNhanh, keyWord: '', kieuNgay: a.orderKieuNgay, ...range,
+    }, s => setStatus('Đang tải đơn hàng — ' + s));
+
+    syncCache.loading = false;
+    syncCache.status = '';
+    toast(`Đã tải ${syncCache.contacts.length} contact, ${syncCache.orders.length} đơn`);
+  } catch (err) {
+    syncCache.loading = false;
+    syncCache.error = err.message;
+  }
+  renderPage();
+}
+
+const groupCount = (list, keyFn) => {
+  const m = new Map();
+  for (const x of list) {
+    const k = keyFn(x) || '—';
+    m.set(k, (m.get(k) || 0) + 1);
+  }
+  return [...m.entries()].sort((a, b) => b[1] - a[1]);
+};
+
+function renderSync(el) {
+  if (!isAdmin()) { el.innerHTML = '<div class="empty">Chỉ quản lý mới xem được trang này.</div>'; return; }
+  const a = state.api;
+  const month = state.ui.month;
+  const kieuNgayOpts = sel => KIEU_NGAY.map(k => `<option ${k === sel ? 'selected' : ''}>${k}</option>`).join('');
+
+  const hasData = syncCache.month === month && (syncCache.contacts || syncCache.orders);
+  const contacts = hasData ? (syncCache.contacts || []) : [];
+  const orders = hasData ? (syncCache.orders || []) : [];
+  const monthRows = monthReports(month);
+  const totalSpend = sum(monthRows, r => r.spend);
+
+  let resultHTML = '';
+  if (syncCache.loading) {
+    resultHTML = `<div class="card"><p class="card-title">Đang đồng bộ…</p><p class="muted" id="sync-status">${esc(syncCache.status)}</p></div>`;
+  } else if (syncCache.error) {
+    resultHTML = `<div class="card"><p class="card-title">Lỗi đồng bộ</p><p class="form-error" style="display:block">${esc(syncCache.error)}</p>
+      <p class="muted" style="font-size:12.5px">Kiểm tra lại token, idChiNhanh và đường dẫn API (cột API trong tài liệu Google Sheet).</p></div>`;
+  } else if (hasData) {
+    // Đơn theo nhân viên marketing (userNameMarketing) + ghép chi phí qua bảng map
+    const byMkt = groupCount(orders, o => o.userNameMarketing || o.userDisplayMarketing);
+    const staff = state.users.filter(u => u.role === 'staff');
+    const mktRows = byMkt.map(([name, count]) => {
+      const mappedId = a.userMap[name] || '';
+      const spend = mappedId ? sum(monthRows.filter(r => r.userId === mappedId), r => r.spend) : 0;
+      return `<tr>
+        <td>${esc(name)}</td>
+        <td class="r">${count.toLocaleString('vi-VN')}</td>
+        <td><select data-map="${esc(name)}"><option value="">— chưa ghép —</option>${staff.map(u =>
+          `<option value="${u.id}" ${mappedId === u.id ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select></td>
+        <td class="r">${mappedId ? esc(VND(spend)) : '—'}</td>
+        <td class="r">${mappedId && count ? esc(VND(spend / count)) : '—'}</td>
+      </tr>`;
+    }).join('');
+
+    const bySource = groupCount(contacts, c => c.nguonDuLieu);
+    const byShip = groupCount(orders, o => o.giaoHangTenTrangThai);
+    const sample = obj => obj ? `<details class="json-preview"><summary class="muted">Xem bản ghi mẫu (JSON)</summary><pre>${esc(JSON.stringify(obj, null, 2))}</pre></details>` : '';
+
+    resultHTML = `
+      <div class="tiles">
+        ${tileHTML('Data về (contact)', contacts.length.toLocaleString('vi-VN'), null)}
+        ${tileHTML('Đơn hàng', orders.length.toLocaleString('vi-VN'), null)}
+        ${tileHTML('Chi phí tháng (app)', VND(totalSpend), null)}
+        ${tileHTML('Chi phí / data', contacts.length ? VND(totalSpend / contacts.length) : '—', null)}
+        ${tileHTML('Chi phí / đơn', orders.length ? VND(totalSpend / orders.length) : '—', null)}
+      </div>
+      <div class="card">
+        <p class="card-title">Đơn hàng theo nhân viên marketing <span class="muted">(ghép với nhân sự trong app để tính chi phí/đơn)</span></p>
+        <div class="table-wrap"><table class="tbl">
+          <thead><tr><th>User marketing (API)</th><th class="r">Đơn</th><th>Ghép nhân sự app</th><th class="r">Chi phí tháng</th><th class="r">CP/đơn</th></tr></thead>
+          <tbody>${mktRows || '<tr><td colspan="5" class="empty">Không có đơn nào trong tháng này.</td></tr>'}</tbody>
+        </table></div>
+        ${sample(orders[0])}
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <p class="card-title">Data về theo nguồn</p>
+          <div class="table-wrap"><table class="tbl">
+            <thead><tr><th>Nguồn dữ liệu</th><th class="r">Số data</th><th class="r">% tổng</th></tr></thead>
+            <tbody>${bySource.map(([src, n]) =>
+              `<tr><td>${esc(src)}</td><td class="r">${n.toLocaleString('vi-VN')}</td><td class="r">${esc(pctStr(n, contacts.length))}</td></tr>`).join('')
+              || '<tr><td colspan="3" class="empty">Không có data nào trong tháng này.</td></tr>'}</tbody>
+          </table></div>
+          ${sample(contacts[0])}
+        </div>
+        <div class="card">
+          <p class="card-title">Đơn hàng theo trạng thái giao hàng</p>
+          <div class="table-wrap"><table class="tbl">
+            <thead><tr><th>Trạng thái</th><th class="r">Số đơn</th></tr></thead>
+            <tbody>${byShip.map(([st, n]) =>
+              `<tr><td>${esc(st)}</td><td class="r">${n.toLocaleString('vi-VN')}</td></tr>`).join('')
+              || '<tr><td colspan="2" class="empty">Không có đơn nào trong tháng này.</td></tr>'}</tbody>
+          </table></div>
+        </div>
+      </div>`;
+  } else {
+    resultHTML = '<div class="empty">Chưa có dữ liệu — nhập cấu hình rồi bấm "Đồng bộ".</div>';
+  }
+
+  el.innerHTML = `
+    <h1 class="page-title">Kết nối API Sandbox<small>đối chiếu data về & đơn hàng với chi phí ${esc(monthLabel(month))}</small></h1>
+    <div class="card">
+      <p class="card-title">Cấu hình kết nối <span class="muted">(lưu trên trình duyệt này)</span></p>
+      <div class="form-grid">
+        <div class="field"><label>Base URL</label><input type="text" id="api-base" value="${esc(a.base)}"></div>
+        <div class="field"><label>idChiNhanh <span class="muted">(lấy từ API LayListChiNhanh)</span></label><input type="text" id="api-chinhanh" value="${esc(a.idChiNhanh)}" placeholder="VD: 0ebc2083-d46e-4a39-…"></div>
+        <div class="field full"><label>Bearer token</label><input type="password" id="api-token" value="${esc(a.token)}" placeholder="Dán token (có hay không có chữ Bearer đều được)"></div>
+        <div class="field full"><label>Đường dẫn API contact</label><input type="text" id="api-contactpath" value="${esc(a.contactPath)}"></div>
+        <div class="field full"><label>Đường dẫn API đơn hàng <span class="muted">(dán đúng URL từ tài liệu — cột API, dòng 6)</span></label><input type="text" id="api-orderpath" value="${esc(a.orderPath)}"></div>
+        <div class="field"><label>Kiểu ngày lọc contact</label><select id="api-contactkieu">${kieuNgayOpts(a.contactKieuNgay)}</select></div>
+        <div class="field"><label>Kiểu ngày lọc đơn hàng</label><select id="api-orderkieu">${kieuNgayOpts(a.orderKieuNgay)}</select></div>
+      </div>
+    </div>
+    <div class="toolbar">
+      <span class="muted">Tải tối đa 100 bản ghi/trang, tự lặp qua các trang cho cả tháng.</span>
+      <span class="spacer"></span>
+      <button class="btn btn-primary" id="btn-sync" ${syncCache.loading ? 'disabled' : ''}>⟳ Đồng bộ ${esc(monthLabel(month))}</button>
+    </div>
+    ${resultHTML}`;
+
+  // Lưu cấu hình khi sửa
+  const bind = (id, key) => { $(id).onchange = e => { a[key] = e.target.value.trim(); save(); }; };
+  bind('#api-base', 'base');
+  bind('#api-chinhanh', 'idChiNhanh');
+  bind('#api-token', 'token');
+  bind('#api-contactpath', 'contactPath');
+  bind('#api-orderpath', 'orderPath');
+  bind('#api-contactkieu', 'contactKieuNgay');
+  bind('#api-orderkieu', 'orderKieuNgay');
+
+  $('#btn-sync').onclick = doSync;
+  $$('[data-map]', el).forEach(sel => sel.onchange = () => {
+    if (sel.value) a.userMap[sel.dataset.map] = sel.value;
+    else delete a.userMap[sel.dataset.map];
+    save(); renderPage();
+  });
 }
 
 /* ---------------- Đổi mật khẩu ---------------- */

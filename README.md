@@ -11,6 +11,7 @@ Toàn bộ dữ liệu lưu trong `localStorage` của trình duyệt (bản dem
 - **Dữ liệu chi tiết** — thêm / sửa / xóa báo cáo ngày (tài khoản, chi phí, doanh thu, số đơn, ghi chú), lọc theo nhân viên & kênh.
 - **Ứng tiền** — nhân viên gửi đề nghị, quản lý duyệt / từ chối (badge đếm số chờ duyệt), bảng đối soát đã ứng vs đã chi.
 - **Nhân sự (quản lý)** — thêm / xóa nhân sự, reset mật khẩu, quản lý tài khoản quảng cáo, đặt KPI ngân sách theo tháng.
+- **Kết nối API Sandbox (quản lý)** — đồng bộ **data về** (`Contact/GetContactByConditions`) và **đơn hàng logistic** từ API đối tác `api.sandbox.com.vn` theo tháng; đối chiếu với chi phí trong app để tính **chi phí/data** và **chi phí/đơn**; ghép user marketing của API với nhân sự trong app; thống kê data theo nguồn, đơn theo trạng thái giao hàng. Server có sẵn endpoint `/api/proxy` chuyển tiếp request (tránh CORS) — chỉ nhận đường dẫn `/partner/api/...`.
 - Lọc mọi trang theo **tháng**; giao diện sáng / tối tự theo hệ điều hành.
 
 ## Tài khoản demo
@@ -44,7 +45,18 @@ public/
   index.html   — khung giao diện
   style.css    — theme sáng/tối, token màu
   app.js       — toàn bộ logic + dữ liệu mẫu (localStorage)
-server.js      — static server thuần Node
+server.js      — static server thuần Node + proxy /api/proxy tới API Sandbox
 ```
+
+## Cấu hình kết nối API (tab "Kết nối API")
+
+Đăng nhập bằng tài khoản quản lý → tab **Kết nối API**:
+
+1. Dán **Bearer token** và **idChiNhanh** (lấy từ API `LayListChiNhanh`).
+2. Kiểm tra 2 đường dẫn API (contact & đơn hàng) khớp với tài liệu — sửa được ngay trên form.
+3. Chọn **kiểu ngày lọc** (`NgayTao`, `DonHangNgayChot`, `GiaoHangNgayGiaoHang`…) rồi bấm **Đồng bộ**.
+
+App tự lặp qua các trang (100 bản ghi/trang) cho cả tháng đang chọn. Cấu hình lưu trong
+localStorage của trình duyệt; token không gửi đi đâu ngoài API đối tác qua `/api/proxy`.
 
 > Lưu ý: đây là bản demo — mật khẩu lưu dạng thường trong localStorage, không dùng cho dữ liệu thật.
