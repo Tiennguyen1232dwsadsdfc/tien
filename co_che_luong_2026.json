@@ -1,6 +1,6 @@
 {
   "schema": "salary-policy/v1",
-  "schema_version": "1.1.0",
+  "schema_version": "1.2.0",
   "meta": {
     "company": "Công ty CP Đầu tư và Công nghệ S99",
     "document_code": "01/S99-2026",
@@ -81,6 +81,7 @@
       },
       "he_so_khong_duy_tri": 0.8,
       "he_so_khong_duy_tri_ap_dung": "chi_lcb",
+      "bao_luu_note": "bao_luu_duy_tri_thang (trong mục duy_tri của từng vị trí): số tháng bảo lưu tính từ lần gần nhất đạt điều kiện duy trì. Trong thời gian bảo lưu, không đạt duy trì vẫn nhận NGUYÊN lương; hết bảo lưu mà vẫn không đạt thì tháng kế tiếp nhận 80% LCB. Ví dụ Leader (bảo lưu 1 tháng): tháng 1 đạt duy trì, tháng 2 không đạt vẫn nhận như tháng 1, tháng 3 không đạt nhận 80% LCB (đã chốt 05/09/2026).",
       "note": "LCB tính trên công định mức 26 công/tháng, công vượt mức nhân 150%. Lương trách nhiệm chỉ nhận khi đủ ngày công hành chính theo vị trí. Không đạt điều kiện duy trì vị trí (theo mục duy_tri): nhận 80% LCB, lương trách nhiệm GIỮ NGUYÊN (đã chốt 05/09/2026)."
     },
     "chu_tich_profit_share": { "nhanh_goc": 0.10, "nhanh_tach": 0.05 },
@@ -136,15 +137,15 @@
         "chuyen_vien_2": { "nang_bac": { "dstc": 200000000 }, "duy_tri": { "dstc": 200000000, "ha_bac_sau_thang": 2, "ha_xuong": "chuyen_vien_1" } },
         "leader": {
           "nang_bac": { "dstc": 250000000, "nhan_ban": "02 chuyên viên", "dao_tao": true },
-          "duy_tri": { "dstc_ca_nhan": 200000000, "dstc_doi_nhom": 800000000, "ha_bac_sau_thang": 4, "ha_xuong": "chuyen_vien_2", "an_luong_80_tu_thang": 3 }
+          "duy_tri": { "dstc_ca_nhan": 200000000, "dstc_doi_nhom": 800000000, "ha_bac_sau_thang": 4, "ha_xuong": "chuyen_vien_2", "an_luong_80_tu_thang": 3, "bao_luu_duy_tri_thang": 1 }
         },
         "truong_phong": {
           "nang_bac": { "dstc_ca_nhan_leader": 200000000, "dstc_doi_nhom": 1000000000, "nhan_ban": "2 Leader", "dao_tao": true },
-          "duy_tri": { "dstc_phong": 1800000000, "ha_bac_sau_thang": 6, "ha_xuong": "leader", "an_luong_80_tu_thang": 4 }
+          "duy_tri": { "dstc_phong": 1800000000, "ha_bac_sau_thang": 6, "ha_xuong": "leader", "an_luong_80_tu_thang": 4, "bao_luu_duy_tri_thang": 2 }
         },
         "giam_doc": {
           "nang_bac": { "dstc_phong": 2500000000, "nhan_ban": "2 Trưởng phòng", "dao_tao": true },
-          "duy_tri": { "dstc_phong": 4000000000, "ha_bac_sau_thang": 12, "ha_xuong": "truong_phong", "an_luong_80_tu_thang": 6 }
+          "duy_tri": { "dstc_phong": 4000000000, "ha_bac_sau_thang": 12, "ha_xuong": "truong_phong", "an_luong_80_tu_thang": 6, "bao_luu_duy_tri_thang": 4 }
         },
         "chu_tich": { "nang_bac": { "dstc": 5000000000, "nhan_ban": "2 Giám đốc", "dao_tao": true } }
       }
@@ -198,15 +199,15 @@
         "chuyen_vien_2": { "nang_bac": { "dstc": 240000000 }, "duy_tri": { "dstc": 240000000, "ha_bac_sau_thang": 2, "ha_xuong": "chuyen_vien_1" } },
         "leader": {
           "nang_bac": { "dstc": 300000000, "nhan_ban": "02 chuyên viên", "dao_tao": true },
-          "duy_tri": { "dstc_ca_nhan": 240000000, "dstc_doi_nhom": 1000000000, "ha_bac_sau_thang": 4, "ha_xuong": "chuyen_vien_2", "an_luong_80_tu_thang": 3 }
+          "duy_tri": { "dstc_ca_nhan": 240000000, "dstc_doi_nhom": 1000000000, "ha_bac_sau_thang": 4, "ha_xuong": "chuyen_vien_2", "an_luong_80_tu_thang": 3, "bao_luu_duy_tri_thang": 1 }
         },
         "truong_phong": {
           "nang_bac": { "dstc_ca_nhan_leader": 240000000, "dstc_doi_nhom": 1200000000, "nhan_ban": "2 Leader", "dao_tao": true },
-          "duy_tri": { "dstc_phong": 2300000000, "ha_bac_sau_thang": 6, "ha_xuong": "leader", "an_luong_80_tu_thang": 4 }
+          "duy_tri": { "dstc_phong": 2300000000, "ha_bac_sau_thang": 6, "ha_xuong": "leader", "an_luong_80_tu_thang": 4, "bao_luu_duy_tri_thang": 2 }
         },
         "giam_doc": {
           "nang_bac": { "dstc_phong": 3000000000, "nhan_ban": "2 Trưởng phòng", "dao_tao": true },
-          "duy_tri": { "dstc_phong": 4800000000, "ha_bac_sau_thang": 12, "ha_xuong": "truong_phong", "an_luong_80_tu_thang": 6 }
+          "duy_tri": { "dstc_phong": 4800000000, "ha_bac_sau_thang": 12, "ha_xuong": "truong_phong", "an_luong_80_tu_thang": 6, "bao_luu_duy_tri_thang": 4 }
         },
         "chu_tich": { "nang_bac": { "dstc": 6000000000, "nhan_ban": "2 Giám đốc", "dao_tao": true } }
       }
@@ -272,15 +273,15 @@
         "chuyen_vien_2": { "nang_bac": { "dstc": 350000000 }, "duy_tri": { "dstc": 350000000, "ha_bac_sau_thang": 2, "ha_xuong": "chuyen_vien_1" } },
         "leader": {
           "nang_bac": { "dstc": 450000000, "nhan_ban": "02 chuyên viên" },
-          "duy_tri": { "dstc_ca_nhan": 300000000, "dstc_doi_nhom": 1000000000, "ha_bac_sau_thang": 3, "ha_xuong": "chuyen_vien_2", "an_luong_80_tu_thang": 3 }
+          "duy_tri": { "dstc_ca_nhan": 300000000, "dstc_doi_nhom": 1000000000, "ha_bac_sau_thang": 3, "ha_xuong": "chuyen_vien_2", "an_luong_80_tu_thang": 3, "bao_luu_duy_tri_thang": 1 }
         },
         "truong_phong": {
           "nang_bac": { "dstc_ca_nhan_leader": 300000000, "dstc_doi_nhom": 1500000000, "nhan_ban": "2 Leader" },
-          "duy_tri": { "dstc_phong": 2500000000, "ha_bac_sau_thang": 6, "ha_xuong": "leader", "an_luong_80_tu_thang": 4 }
+          "duy_tri": { "dstc_phong": 2500000000, "ha_bac_sau_thang": 6, "ha_xuong": "leader", "an_luong_80_tu_thang": 4, "bao_luu_duy_tri_thang": 2 }
         },
         "giam_doc": {
           "nang_bac": { "dstc_phong": 3000000000, "nhan_ban": "2 Trưởng phòng" },
-          "duy_tri": { "dstc_phong": 5000000000, "ha_bac_sau_thang": 12, "ha_xuong": "truong_phong", "an_luong_80_tu_thang": 6 }
+          "duy_tri": { "dstc_phong": 5000000000, "ha_bac_sau_thang": 12, "ha_xuong": "truong_phong", "an_luong_80_tu_thang": 6, "bao_luu_duy_tri_thang": 4 }
         },
         "chu_tich": { "nang_bac": { "dstc": 6000000000, "nhan_ban": "2 Giám đốc" } }
       }
@@ -346,15 +347,15 @@
         "chuyen_vien_2": { "nang_bac": { "dstc": 350000000 }, "duy_tri": { "dstc": 350000000, "ha_bac_sau_thang": 2, "ha_xuong": "chuyen_vien_1" } },
         "leader": {
           "nang_bac": { "dstc": 450000000, "nhan_ban": "02 chuyên viên" },
-          "duy_tri": { "dstc_ca_nhan": 300000000, "dstc_doi_nhom": 1000000000, "ha_bac_sau_thang": 3, "ha_xuong": "chuyen_vien_2", "an_luong_80_tu_thang": 3 }
+          "duy_tri": { "dstc_ca_nhan": 300000000, "dstc_doi_nhom": 1000000000, "ha_bac_sau_thang": 3, "ha_xuong": "chuyen_vien_2", "an_luong_80_tu_thang": 3, "bao_luu_duy_tri_thang": 1 }
         },
         "truong_phong": {
           "nang_bac": { "dstc_ca_nhan_leader": 300000000, "dstc_doi_nhom": 1500000000, "nhan_ban": "2 Leader" },
-          "duy_tri": { "dstc_phong": 2500000000, "ha_bac_sau_thang": 6, "ha_xuong": "leader", "an_luong_80_tu_thang": 4 }
+          "duy_tri": { "dstc_phong": 2500000000, "ha_bac_sau_thang": 6, "ha_xuong": "leader", "an_luong_80_tu_thang": 4, "bao_luu_duy_tri_thang": 2 }
         },
         "giam_doc": {
           "nang_bac": { "dstc_phong": 3000000000, "nhan_ban": "2 Trưởng phòng" },
-          "duy_tri": { "dstc_phong": 5000000000, "ha_bac_sau_thang": 12, "ha_xuong": "truong_phong", "an_luong_80_tu_thang": 6 }
+          "duy_tri": { "dstc_phong": 5000000000, "ha_bac_sau_thang": 12, "ha_xuong": "truong_phong", "an_luong_80_tu_thang": 6, "bao_luu_duy_tri_thang": 4 }
         },
         "chu_tich": { "nang_bac": { "dstc": 6000000000, "nhan_ban": "2 Giám đốc" } }
       }
@@ -366,9 +367,8 @@
     "ĐÃ CHỐT 05/09/2026 — 2. Không đạt điều kiện duy trì: nhận 80% LCB, lương trách nhiệm giữ nguyên 100%.",
     "ĐÃ CHỐT 05/09/2026 — 3. CSKH-Kaimen, Trưởng phòng: DSTCĐN đạt 1.000.000.000 (1 tỷ).",
     "ĐÃ CHỐT 05/09/2026 — 4. Bộ phận 'CSKH – Kaimen' chính là CSKH – Tiểu Đêm (một bộ phận, hai tên gọi).",
-    "ĐÃ CHỐT 05/09/2026 — 5. Thưởng KPI và thưởng tỉ lệ thành công lấy ngưỡng CAO NHẤT đạt được, không cộng dồn các ngưỡng."
+    "ĐÃ CHỐT 05/09/2026 — 5. Thưởng KPI và thưởng tỉ lệ thành công lấy ngưỡng CAO NHẤT đạt được, không cộng dồn các ngưỡng.",
+    "ĐÃ CHỐT 05/09/2026 — 6. Bảo lưu duy trì của Leader là 1 tháng: tháng 1 đạt duy trì, tháng 2 không đạt vẫn nhận như tháng 1, tháng 3 không đạt mới nhận 80% LCB."
   ],
-  "open_questions": [
-    "1. 'Bảo lưu điều kiện duy trì trong vòng 1-2 tháng' (vị trí Leader) — bản in không rõ 1 hay 2 tháng, cần xác nhận (chỉ ảnh hưởng quy tắc duy trì vị trí, không ảnh hưởng công thức tính lương tháng)."
-  ]
+  "open_questions": []
 }
