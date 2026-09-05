@@ -1,0 +1,371 @@
+{
+  "schema": "salary-policy/v1",
+  "schema_version": "1.0.0",
+  "meta": {
+    "company": "Công ty CP Đầu tư và Công nghệ S99",
+    "document_code": "01/S99-2026",
+    "effective_date": "2026-01-01",
+    "currency": "VND",
+    "note": "Số tiền là VND (số nguyên). Tỉ lệ phần trăm ghi dạng thập phân: 0.005 = 0.5%. Cơ chế này thay thế tất cả cơ chế ban hành trước đó.",
+    "source_documents": [
+      "2026 Cơ chế CSKH - Kaimen (Tiểu Đêm)",
+      "2026 Cơ chế CSKH - Cao Phục Khớp",
+      "2026 Cơ chế Sale - Tiểu Đêm",
+      "2026 Cơ chế Sale - Cao Phục Khớp"
+    ]
+  },
+
+  "engine_spec": {
+    "description": "Đặc tả để app bất kỳ đọc file này và tính lương đúng. App KHÔNG hard-code con số nào — mọi con số lấy từ file này.",
+    "tier_table_semantics": "Mỗi tier_table là danh sách bậc [{min, max, value}]. Tìm bậc có min <= x < max (max = null nghĩa là vô cùng) rồi lấy value. Đây là bảng TRA PHẲNG (flat lookup), KHÔNG phải lũy tiến từng phần: hoa hồng = DSTC * value của bậc chứa DSTC.",
+    "threshold_table_semantics": "Mỗi threshold_table là danh sách [{gte, value}] sắp xếp tăng dần. Lấy value của ngưỡng LỚN NHẤT mà x >= gte; nếu x nhỏ hơn mọi ngưỡng thì value = 0.",
+    "rounding": "Tính bằng số thực, làm tròn kết quả cuối cùng về đồng (0 chữ số thập phân).",
+    "calculation_order": [
+      "1. luong_co_ban = (lcb / cong_dinh_muc) * min(ngay_cong, cong_dinh_muc) + (lcb / cong_dinh_muc) * max(ngay_cong - cong_dinh_muc, 0) * he_so_vuot_cong",
+      "2. luong_trach_nhiem = tn nếu ngay_cong_hanh_chinh >= số công yêu cầu của vị trí (xem work_rules.dieu_kien_trach_nhiem), ngược lại = 0",
+      "3. he_so_duy_tri: nếu nhân sự KHÔNG đạt điều kiện duy trì vị trí trong kỳ (theo mục duy_tri của vị trí) thì luong_co_ban và luong_trach_nhiem nhân với 0.8; đạt thì nhân 1.0",
+      "4. hoa_hong_ca_nhan = dstc * tra_bang(commission_table của bộ phận, dstc). Áp dụng cho các vị trí có ca_nhan = true (nhân viên các bậc và Leader — 'Leader hưởng thưởng cá nhân như nhân viên')",
+      "5. thuong_kpi = hoa_hong_ca_nhan * tra_nguong(kpi_bonus của bộ phận, chỉ_số_kpi). Bộ phận CSKH: chỉ_số_kpi = ty_le_dat_kpi (dstc_thực_tế / kpi_mục_tiêu, tính theo kpi_target_schedule). Bộ phận SALE: chỉ_số_kpi = dstc / so_sdt_hop_le (DSTC trên 1 số điện thoại, đã loại số ảo)",
+      "6. thuong_ty_le_thanh_cong (chỉ SALE) = hoa_hong_ca_nhan * tra_nguong(success_rate_bonus, ty_le_thanh_cong)",
+      "7. hoa_hong_doi_nhom (Leader/TP/GĐ) = rate * dstc_team + split_schedule[thang_sau_tach - 1] * dstc_team_tach (nếu có team tách, trong số tháng quy định). DSTC team không bao gồm DSTC cá nhân Leader/Trưởng phòng",
+      "8. thu_nhap_chu_tich = 10% lợi nhuận nhánh gốc + 5% lợi nhuận các nhánh tách",
+      "9. phu_cap_truc_toi (chỉ SALE) = 50000 * số buổi trực đạt điều kiện (DSCĐ >= 3.000.000 và đủ 3.5 tiếng, khung 18h-22h)",
+      "10. phat_hoan = 30000 * so_don_hoan_vuot_muc (trừ vào lương thực nhận)",
+      "11. luong_thuc_nhan = (luong_co_ban + luong_trach_nhiem) * he_so_duy_tri + hoa_hong_ca_nhan + thuong_kpi + thuong_ty_le_thanh_cong + hoa_hong_doi_nhom + thu_nhap_chu_tich + phu_cap_truc_toi - phat_hoan"
+    ],
+    "inputs": [
+      { "key": "bo_phan", "label": "Bộ phận", "type": "enum", "values": ["CSKH_KAIMEN", "CSKH_CPK", "SALE_TIEU_DEM", "SALE_CPK"] },
+      { "key": "vi_tri", "label": "Vị trí", "type": "enum", "values": ["hoc_viec", "chinh_thuc", "chuyen_vien_1", "chuyen_vien_2", "leader", "truong_phong", "giam_doc", "chu_tich"] },
+      { "key": "ngay_cong", "label": "Ngày công thực tế", "type": "number", "unit": "công" },
+      { "key": "ngay_cong_hanh_chinh", "label": "Ngày công hành chính", "type": "number", "unit": "công", "note": "Dùng xét điều kiện nhận lương trách nhiệm" },
+      { "key": "dat_duy_tri", "label": "Đạt điều kiện duy trì vị trí trong kỳ", "type": "boolean", "default": true },
+      { "key": "dstc", "label": "Doanh số thành công cá nhân (DSTC)", "type": "number", "unit": "VND" },
+      { "key": "ty_le_dat_kpi", "label": "Tỉ lệ đạt KPI mục tiêu (CSKH)", "type": "number", "unit": "ratio", "note": "= DSTC resale thực tế / KPI mục tiêu. KPI mục tiêu = Σ(DS nhận kỳ gốc tháng Ti × kpi_target_schedule[Ti])" },
+      { "key": "so_sdt_hop_le", "label": "Số SĐT hợp lệ được giao (SALE)", "type": "number", "unit": "số", "note": "Đã trừ 5% số trêu/số sai/số không đúng" },
+      { "key": "ty_le_thanh_cong", "label": "Tỉ lệ giao hàng thành công (SALE)", "type": "number", "unit": "ratio" },
+      { "key": "so_don_hoan_vuot", "label": "Số đơn hoàn vượt định mức", "type": "number", "unit": "đơn" },
+      { "key": "dstc_team", "label": "DSTC đội nhóm / phòng (không gồm DSTC cá nhân Leader, Trưởng phòng)", "type": "number", "unit": "VND" },
+      { "key": "dstc_team_tach", "label": "DSTC team/phòng đã tách (nhân bản)", "type": "number", "unit": "VND" },
+      { "key": "thang_sau_tach", "label": "Tháng thứ mấy kể từ khi tách team/phòng", "type": "number", "unit": "tháng" },
+      { "key": "loi_nhuan_goc", "label": "Lợi nhuận nhánh gốc (Chủ tịch)", "type": "number", "unit": "VND" },
+      { "key": "loi_nhuan_nhanh_tach", "label": "Lợi nhuận các nhánh tách (Chủ tịch)", "type": "number", "unit": "VND" },
+      { "key": "so_buoi_truc_toi_dat", "label": "Số buổi trực tối đạt điều kiện (SALE)", "type": "number", "unit": "buổi" }
+    ]
+  },
+
+  "shared": {
+    "glossary": {
+      "LCB": "Lương cơ bản",
+      "TN": "Lương trách nhiệm",
+      "DSCD": "Doanh số chuyển đi",
+      "DSTC": "Doanh số thành công",
+      "DSTCDN": "Doanh số thành công của đội nhóm (không bao gồm DSTC cá nhân Leader, Trưởng phòng)"
+    },
+    "positions": [
+      { "key": "hoc_viec", "label": "Học việc", "ca_nhan": true, "lcb": 6000000, "tn": 0 },
+      { "key": "chinh_thuc", "label": "Chính thức", "ca_nhan": true, "lcb": 6000000, "tn": 1000000 },
+      { "key": "chuyen_vien_1", "label": "Chuyên viên 1", "ca_nhan": true, "lcb": 7000000, "tn": 1000000 },
+      { "key": "chuyen_vien_2", "label": "Chuyên viên 2", "ca_nhan": true, "lcb": 8000000, "tn": 1000000 },
+      { "key": "leader", "label": "Leader", "ca_nhan": true, "lcb": 10000000, "tn": 2000000 },
+      { "key": "truong_phong", "label": "Trưởng phòng", "ca_nhan": false, "lcb": 15000000, "tn": 3000000 },
+      { "key": "giam_doc", "label": "Giám đốc", "ca_nhan": false, "lcb": 20000000, "tn": 5000000 },
+      { "key": "chu_tich", "label": "Chủ tịch", "ca_nhan": false, "lcb": 0, "tn": 0, "note": "Thu nhập theo lợi nhuận" }
+    ],
+    "positions_note": "Bảng gốc ghi tổng LCB+TN: Học việc 6tr (chưa ghi TN); Chính thức 7tr (TN 1tr); CV1 8tr (TN 1tr); CV2 9tr (TN 1tr); Leader 12tr (TN 2tr); Trưởng phòng 18tr (TN 3tr); Giám đốc 25tr (TN 5tr). Ở đây đã tách sẵn lcb = tổng - tn.",
+    "work_rules": {
+      "cong_dinh_muc": 26,
+      "he_so_vuot_cong": 1.5,
+      "dieu_kien_trach_nhiem": {
+        "hoc_viec": 26, "chinh_thuc": 26, "chuyen_vien_1": 26, "chuyen_vien_2": 26, "leader": 26,
+        "truong_phong": 24, "giam_doc": 24
+      },
+      "he_so_khong_duy_tri": 0.8,
+      "note": "LCB tính trên công định mức 26 công/tháng, công vượt mức nhân 150%. Lương trách nhiệm chỉ nhận khi đủ ngày công hành chính theo vị trí. Không đạt điều kiện duy trì vị trí (theo mục duy_tri): nhận 80% LCB và TN của vị trí."
+    },
+    "chu_tich_profit_share": { "nhanh_goc": 0.10, "nhanh_tach": 0.05 },
+    "phat_hoan_don": { "muc_phat": 30000, "unit": "VND/đơn hoàn vượt mức", "note": "Trừ vào lương thực nhận" }
+  },
+
+  "departments": [
+    {
+      "code": "CSKH_KAIMEN",
+      "label": "CSKH – Kaimen (Tiểu Đêm)",
+      "khoi": "CSKH",
+      "commission_table": {
+        "type": "tier_table", "base": "dstc", "unit": "rate",
+        "tiers": [
+          { "min": 0, "max": 100000000, "value": 0.005 },
+          { "min": 100000000, "max": 120000000, "value": 0.010 },
+          { "min": 120000000, "max": 150000000, "value": 0.015 },
+          { "min": 150000000, "max": 180000000, "value": 0.020 },
+          { "min": 180000000, "max": 210000000, "value": 0.025 },
+          { "min": 210000000, "max": 240000000, "value": 0.030 },
+          { "min": 240000000, "max": 270000000, "value": 0.035 },
+          { "min": 270000000, "max": 300000000, "value": 0.040 },
+          { "min": 300000000, "max": 350000000, "value": 0.045 },
+          { "min": 350000000, "max": null, "value": 0.050 }
+        ]
+      },
+      "kpi_bonus": {
+        "type": "threshold_table", "base": "ty_le_dat_kpi", "unit": "% của thưởng hoa hồng",
+        "thresholds": [
+          { "gte": 0.7, "value": 0.10 },
+          { "gte": 0.8, "value": 0.15 },
+          { "gte": 0.9, "value": 0.20 },
+          { "gte": 1.0, "value": 0.25 },
+          { "gte": 1.1, "value": 0.30 },
+          { "gte": 1.2, "value": 0.35 }
+        ]
+      },
+      "kpi_target_schedule": {
+        "note": "KPI mục tiêu resale = Σ(DS nhận kỳ gốc của tháng Ti × tỉ lệ). Phụ lục 01/PLCC/CSKH-KM.",
+        "unit": "ratio theo DS nhận kỳ gốc",
+        "months": { "T0": 0.05, "T1": 0.17, "T2": 0.22, "T3": 0.16, "T4": 0.13, "T5": 0.07, "T6": 0.05, "T7": 0.01, "T8": 0.01, "T9": 0.01, "T10": 0.01, "T11": 0.01, "T12": 0.01 }
+      },
+      "penalty": { "kieu": "ty_le_hoan", "nguong": 0.03, "note": "Tỉ lệ hoàn định mức < 3%; nếu >= 3% phạt 30.000đ/1 đơn hoàn vượt mức" },
+      "team_commission": {
+        "leader": { "rate": 0.006, "base": "dstc_team", "split_schedule": [0.005, 0.004, 0.003] },
+        "truong_phong": { "rate": 0.007, "base": "dstc_phong", "split_schedule": [0.006, 0.005, 0.004, 0.003] },
+        "giam_doc": { "rate": 0.007, "base": "dstc_phong", "split_schedule": [0.006, 0.005, 0.004, 0.003, 0.002] }
+      },
+      "truc_toi": null,
+      "thang_tien": {
+        "chinh_thuc": { "nang_bac": { "dstc": 120000000 }, "duy_tri": { "dstc": 120000000 } },
+        "chuyen_vien_1": { "nang_bac": { "dstc": 150000000 }, "duy_tri": { "dstc": 150000000, "ha_bac_sau_thang": 2, "ha_xuong": "chinh_thuc" } },
+        "chuyen_vien_2": { "nang_bac": { "dstc": 200000000 }, "duy_tri": { "dstc": 200000000, "ha_bac_sau_thang": 2, "ha_xuong": "chuyen_vien_1" } },
+        "leader": {
+          "nang_bac": { "dstc": 250000000, "nhan_ban": "02 chuyên viên", "dao_tao": true },
+          "duy_tri": { "dstc_ca_nhan": 200000000, "dstc_doi_nhom": 800000000, "ha_bac_sau_thang": 4, "ha_xuong": "chuyen_vien_2", "an_luong_80_tu_thang": 3 }
+        },
+        "truong_phong": {
+          "nang_bac": { "dstc_ca_nhan_leader": 200000000, "dstc_doi_nhom": 1000000000, "nhan_ban": "2 Leader", "dao_tao": true },
+          "duy_tri": { "dstc_phong": 1800000000, "ha_bac_sau_thang": 6, "ha_xuong": "leader", "an_luong_80_tu_thang": 4 }
+        },
+        "giam_doc": {
+          "nang_bac": { "dstc_phong": 2500000000, "nhan_ban": "2 Trưởng phòng", "dao_tao": true },
+          "duy_tri": { "dstc_phong": 4000000000, "ha_bac_sau_thang": 12, "ha_xuong": "truong_phong", "an_luong_80_tu_thang": 6 }
+        },
+        "chu_tich": { "nang_bac": { "dstc": 5000000000, "nhan_ban": "2 Giám đốc", "dao_tao": true } }
+      }
+    },
+
+    {
+      "code": "CSKH_CPK",
+      "label": "CSKH – Cao Phục Khớp",
+      "khoi": "CSKH",
+      "commission_table": {
+        "type": "tier_table", "base": "dstc", "unit": "rate",
+        "tiers": [
+          { "min": 0, "max": 100000000, "value": 0.005 },
+          { "min": 100000000, "max": 120000000, "value": 0.010 },
+          { "min": 120000000, "max": 150000000, "value": 0.015 },
+          { "min": 150000000, "max": 180000000, "value": 0.020 },
+          { "min": 180000000, "max": 210000000, "value": 0.025 },
+          { "min": 210000000, "max": 240000000, "value": 0.030 },
+          { "min": 240000000, "max": 270000000, "value": 0.035 },
+          { "min": 270000000, "max": 300000000, "value": 0.040 },
+          { "min": 300000000, "max": 350000000, "value": 0.045 },
+          { "min": 350000000, "max": null, "value": 0.050 }
+        ]
+      },
+      "kpi_bonus": {
+        "type": "threshold_table", "base": "ty_le_dat_kpi", "unit": "% của thưởng hoa hồng",
+        "thresholds": [
+          { "gte": 0.7, "value": 0.10 },
+          { "gte": 0.8, "value": 0.15 },
+          { "gte": 0.9, "value": 0.20 },
+          { "gte": 1.0, "value": 0.25 },
+          { "gte": 1.1, "value": 0.30 },
+          { "gte": 1.2, "value": 0.35 }
+        ]
+      },
+      "kpi_target_schedule": {
+        "note": "KPI mục tiêu resale = Σ(DS nhận kỳ gốc của tháng Ti × tỉ lệ). Phụ lục 01/PLCC/CSKH-CPK.",
+        "unit": "ratio theo DS nhận kỳ gốc",
+        "months": { "T0": 0.10, "T1": 0.22, "T2": 0.20, "T3": 0.15, "T4": 0.13, "T5": 0.10, "T6": 0.10, "T7": 0.08, "T8": 0.07, "T9": 0.06, "T10": 0.05, "T11": 0.04, "T12": 0.03 }
+      },
+      "penalty": { "kieu": "ty_le_hoan", "nguong": 0.03, "note": "Tỉ lệ hoàn định mức < 3%; nếu >= 3% phạt 30.000đ/1 đơn hoàn vượt mức" },
+      "team_commission": {
+        "leader": { "rate": 0.006, "base": "dstc_team", "split_schedule": [0.005, 0.004, 0.004] },
+        "truong_phong": { "rate": 0.007, "base": "dstc_phong", "split_schedule": [0.006, 0.005, 0.004, 0.003] },
+        "giam_doc": { "rate": 0.007, "base": "dstc_phong", "split_schedule": [0.006, 0.005, 0.004, 0.003, 0.002] }
+      },
+      "truc_toi": null,
+      "thang_tien": {
+        "chinh_thuc": { "nang_bac": { "dstc": 120000000 }, "duy_tri": { "dstc": 120000000 } },
+        "chuyen_vien_1": { "nang_bac": { "dstc": 180000000 }, "duy_tri": { "dstc": 180000000, "ha_bac_sau_thang": 2, "ha_xuong": "chinh_thuc" } },
+        "chuyen_vien_2": { "nang_bac": { "dstc": 240000000 }, "duy_tri": { "dstc": 240000000, "ha_bac_sau_thang": 2, "ha_xuong": "chuyen_vien_1" } },
+        "leader": {
+          "nang_bac": { "dstc": 300000000, "nhan_ban": "02 chuyên viên", "dao_tao": true },
+          "duy_tri": { "dstc_ca_nhan": 240000000, "dstc_doi_nhom": 1000000000, "ha_bac_sau_thang": 4, "ha_xuong": "chuyen_vien_2", "an_luong_80_tu_thang": 3 }
+        },
+        "truong_phong": {
+          "nang_bac": { "dstc_ca_nhan_leader": 240000000, "dstc_doi_nhom": 1200000000, "nhan_ban": "2 Leader", "dao_tao": true },
+          "duy_tri": { "dstc_phong": 2300000000, "ha_bac_sau_thang": 6, "ha_xuong": "leader", "an_luong_80_tu_thang": 4 }
+        },
+        "giam_doc": {
+          "nang_bac": { "dstc_phong": 3000000000, "nhan_ban": "2 Trưởng phòng", "dao_tao": true },
+          "duy_tri": { "dstc_phong": 4800000000, "ha_bac_sau_thang": 12, "ha_xuong": "truong_phong", "an_luong_80_tu_thang": 6 }
+        },
+        "chu_tich": { "nang_bac": { "dstc": 6000000000, "nhan_ban": "2 Giám đốc", "dao_tao": true } }
+      }
+    },
+
+    {
+      "code": "SALE_TIEU_DEM",
+      "label": "Sale – Tiểu Đêm",
+      "khoi": "SALE",
+      "commission_table": {
+        "type": "tier_table", "base": "dstc", "unit": "rate",
+        "tiers": [
+          { "min": 0, "max": 120000000, "value": 0.005 },
+          { "min": 120000000, "max": 150000000, "value": 0.011 },
+          { "min": 150000000, "max": 200000000, "value": 0.0125 },
+          { "min": 200000000, "max": 250000000, "value": 0.014 },
+          { "min": 250000000, "max": 300000000, "value": 0.0175 },
+          { "min": 300000000, "max": 350000000, "value": 0.0195 },
+          { "min": 350000000, "max": 400000000, "value": 0.021 },
+          { "min": 400000000, "max": 450000000, "value": 0.023 },
+          { "min": 450000000, "max": 500000000, "value": 0.0245 },
+          { "min": 500000000, "max": 550000000, "value": 0.0265 },
+          { "min": 550000000, "max": 600000000, "value": 0.028 },
+          { "min": 600000000, "max": 650000000, "value": 0.030 },
+          { "min": 650000000, "max": null, "value": 0.0315 }
+        ]
+      },
+      "kpi_bonus": {
+        "type": "threshold_table", "base": "dstc_tren_sdt", "unit": "% của thưởng hoa hồng",
+        "note": "dstc_tren_sdt = DSTC / số SĐT hợp lệ (đã trừ 5% số trêu, số sai, số không đúng)",
+        "thresholds": [
+          { "gte": 300000, "value": 0.15 },
+          { "gte": 320000, "value": 0.30 },
+          { "gte": 340000, "value": 0.45 },
+          { "gte": 370000, "value": 0.50 },
+          { "gte": 400000, "value": 0.55 }
+        ]
+      },
+      "success_rate_bonus": {
+        "type": "threshold_table", "base": "ty_le_thanh_cong", "unit": "% của thưởng hoa hồng",
+        "thresholds": [
+          { "gte": 0.90, "value": 0.05 },
+          { "gte": 0.92, "value": 0.10 },
+          { "gte": 0.94, "value": 0.15 },
+          { "gte": 0.96, "value": 0.20 },
+          { "gte": 0.98, "value": 0.25 }
+        ]
+      },
+      "penalty": { "kieu": "ty_le_thanh_cong", "nguong_thanh_cong": 0.90, "nguong_hoan": 0.10, "note": "Tỉ lệ thành công < 90%, hoàn vượt quá 10%: phạt 30.000đ/1 đơn hoàn vượt mức" },
+      "team_commission": {
+        "leader": { "rate": 0.0035, "base": "dstc_team", "split_schedule": [0.0035, 0.003, 0.0025] },
+        "truong_phong": { "rate": 0.0042, "base": "dstc_phong", "split_schedule": [0.004, 0.0035, 0.003, 0.002] },
+        "giam_doc": { "rate": 0.0035, "base": "dstc_phong", "split_schedule": [0.0035, 0.003, 0.0025, 0.002, 0.0015] }
+      },
+      "truc_toi": {
+        "phu_cap": 50000, "unit": "VND/buổi", "khung_gio": "18:00-22:00",
+        "dieu_kien": { "dscd_toi_thieu": 3000000, "so_gio_toi_thieu": 3.5 },
+        "note": "Trực tại văn phòng hoặc tại nhà"
+      },
+      "thang_tien": {
+        "chinh_thuc": { "nang_bac": { "dstc": 150000000 }, "duy_tri": { "dstc": 150000000 } },
+        "chuyen_vien_1": { "nang_bac": { "dstc": 250000000 }, "duy_tri": { "dstc": 250000000, "ha_bac_sau_thang": 2, "ha_xuong": "chinh_thuc" } },
+        "chuyen_vien_2": { "nang_bac": { "dstc": 350000000 }, "duy_tri": { "dstc": 350000000, "ha_bac_sau_thang": 2, "ha_xuong": "chuyen_vien_1" } },
+        "leader": {
+          "nang_bac": { "dstc": 450000000, "nhan_ban": "02 chuyên viên" },
+          "duy_tri": { "dstc_ca_nhan": 300000000, "dstc_doi_nhom": 1000000000, "ha_bac_sau_thang": 3, "ha_xuong": "chuyen_vien_2", "an_luong_80_tu_thang": 3 }
+        },
+        "truong_phong": {
+          "nang_bac": { "dstc_ca_nhan_leader": 300000000, "dstc_doi_nhom": 1500000000, "nhan_ban": "2 Leader" },
+          "duy_tri": { "dstc_phong": 2500000000, "ha_bac_sau_thang": 6, "ha_xuong": "leader", "an_luong_80_tu_thang": 4 }
+        },
+        "giam_doc": {
+          "nang_bac": { "dstc_phong": 3000000000, "nhan_ban": "2 Trưởng phòng" },
+          "duy_tri": { "dstc_phong": 5000000000, "ha_bac_sau_thang": 12, "ha_xuong": "truong_phong", "an_luong_80_tu_thang": 6 }
+        },
+        "chu_tich": { "nang_bac": { "dstc": 6000000000, "nhan_ban": "2 Giám đốc" } }
+      }
+    },
+
+    {
+      "code": "SALE_CPK",
+      "label": "Sale – Cao Phục Khớp",
+      "khoi": "SALE",
+      "commission_table": {
+        "type": "tier_table", "base": "dstc", "unit": "rate",
+        "tiers": [
+          { "min": 0, "max": 120000000, "value": 0.005 },
+          { "min": 120000000, "max": 150000000, "value": 0.011 },
+          { "min": 150000000, "max": 200000000, "value": 0.0125 },
+          { "min": 200000000, "max": 250000000, "value": 0.014 },
+          { "min": 250000000, "max": 300000000, "value": 0.0175 },
+          { "min": 300000000, "max": 350000000, "value": 0.0195 },
+          { "min": 350000000, "max": 400000000, "value": 0.021 },
+          { "min": 400000000, "max": 450000000, "value": 0.023 },
+          { "min": 450000000, "max": 500000000, "value": 0.0245 },
+          { "min": 500000000, "max": 550000000, "value": 0.0265 },
+          { "min": 550000000, "max": 600000000, "value": 0.028 },
+          { "min": 600000000, "max": 650000000, "value": 0.030 },
+          { "min": 650000000, "max": null, "value": 0.0315 }
+        ]
+      },
+      "kpi_bonus": {
+        "type": "threshold_table", "base": "dstc_tren_sdt", "unit": "% của thưởng hoa hồng",
+        "note": "dstc_tren_sdt = DSTC / số SĐT hợp lệ (đã trừ 5% số trêu, số sai, số không đúng)",
+        "thresholds": [
+          { "gte": 330000, "value": 0.15 },
+          { "gte": 350000, "value": 0.30 },
+          { "gte": 380000, "value": 0.45 },
+          { "gte": 400000, "value": 0.50 },
+          { "gte": 420000, "value": 0.55 }
+        ]
+      },
+      "success_rate_bonus": {
+        "type": "threshold_table", "base": "ty_le_thanh_cong", "unit": "% của thưởng hoa hồng",
+        "thresholds": [
+          { "gte": 0.90, "value": 0.05 },
+          { "gte": 0.92, "value": 0.10 },
+          { "gte": 0.94, "value": 0.15 },
+          { "gte": 0.96, "value": 0.20 },
+          { "gte": 0.98, "value": 0.25 }
+        ]
+      },
+      "penalty": { "kieu": "ty_le_thanh_cong", "nguong_thanh_cong": 0.90, "nguong_hoan": 0.10, "note": "Tỉ lệ thành công < 90%, hoàn vượt quá 10%: phạt 30.000đ/1 đơn hoàn vượt mức" },
+      "team_commission": {
+        "leader": { "rate": 0.0035, "base": "dstc_team", "split_schedule": [0.0035, 0.003, 0.0025] },
+        "truong_phong": { "rate": 0.0042, "base": "dstc_phong", "split_schedule": [0.004, 0.0035, 0.003, 0.002] },
+        "giam_doc": { "rate": 0.0035, "base": "dstc_phong", "split_schedule": [0.0035, 0.003, 0.0025, 0.002, 0.0015] }
+      },
+      "truc_toi": {
+        "phu_cap": 50000, "unit": "VND/buổi", "khung_gio": "18:00-22:00",
+        "dieu_kien": { "dscd_toi_thieu": 3000000, "so_gio_toi_thieu": 3.5 },
+        "note": "Trực tại văn phòng hoặc tại nhà"
+      },
+      "thang_tien": {
+        "chinh_thuc": { "nang_bac": { "dstc": 150000000 }, "duy_tri": { "dstc": 150000000 } },
+        "chuyen_vien_1": { "nang_bac": { "dstc": 250000000 }, "duy_tri": { "dstc": 250000000, "ha_bac_sau_thang": 2, "ha_xuong": "chinh_thuc" } },
+        "chuyen_vien_2": { "nang_bac": { "dstc": 350000000 }, "duy_tri": { "dstc": 350000000, "ha_bac_sau_thang": 2, "ha_xuong": "chuyen_vien_1" } },
+        "leader": {
+          "nang_bac": { "dstc": 450000000, "nhan_ban": "02 chuyên viên" },
+          "duy_tri": { "dstc_ca_nhan": 300000000, "dstc_doi_nhom": 1000000000, "ha_bac_sau_thang": 3, "ha_xuong": "chuyen_vien_2", "an_luong_80_tu_thang": 3 }
+        },
+        "truong_phong": {
+          "nang_bac": { "dstc_ca_nhan_leader": 300000000, "dstc_doi_nhom": 1500000000, "nhan_ban": "2 Leader" },
+          "duy_tri": { "dstc_phong": 2500000000, "ha_bac_sau_thang": 6, "ha_xuong": "leader", "an_luong_80_tu_thang": 4 }
+        },
+        "giam_doc": {
+          "nang_bac": { "dstc_phong": 3000000000, "nhan_ban": "2 Trưởng phòng" },
+          "duy_tri": { "dstc_phong": 5000000000, "ha_bac_sau_thang": 12, "ha_xuong": "truong_phong", "an_luong_80_tu_thang": 6 }
+        },
+        "chu_tich": { "nang_bac": { "dstc": 6000000000, "nhan_ban": "2 Giám đốc" } }
+      }
+    }
+  ],
+
+  "open_questions": [
+    "1. Bảng hoa hồng hiểu là TRA PHẲNG (toàn bộ DSTC nhân % của bậc đạt được), không phải lũy tiến từng phần — cần xác nhận.",
+    "2. Không đạt điều kiện duy trì: hiểu là nhận 80% của cả LCB và TN — cần xác nhận (văn bản ghi '80% LCB ... và TN').",
+    "3. CSKH-Kaimen, mục Trưởng phòng: văn bản ghi 'DSTCĐN đạt 1.00.000.000' — đã hiểu là 1.000.000.000 (1 tỷ), cần xác nhận.",
+    "4. 'Bảo lưu điều kiện duy trì trong vòng 1-2 tháng' (Leader) — văn bản in không rõ (1 hay 2 tháng), cần xác nhận.",
+    "5. File PDF tên 'CSKH Tiểu Đêm' nhưng nội dung ghi bộ phận 'CSKH – Kaimen' — đã lấy theo nội dung văn bản.",
+    "6. Thưởng KPI và thưởng tỉ lệ thành công lấy ngưỡng CAO NHẤT đạt được (không cộng dồn các ngưỡng) — cần xác nhận."
+  ]
+}
