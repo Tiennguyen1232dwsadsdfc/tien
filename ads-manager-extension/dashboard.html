@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quản lý TKQC</title>
+<link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <span class="logo">TK</span>
+      <div>
+        <h1>Quản lý TKQC</h1>
+        <p class="who" id="who">Chưa tải dữ liệu</p>
+      </div>
+    </div>
+    <nav class="tabs">
+      <button class="tab active" data-tab="fb">Facebook Ads</button>
+      <button class="tab" data-tab="gg">Google Ads</button>
+    </nav>
+    <div class="actions">
+      <input id="search" type="search" placeholder="Tìm theo tên / ID tài khoản…">
+      <select id="statusFilter">
+        <option value="">Tất cả trạng thái</option>
+        <option value="active">Hoạt động</option>
+        <option value="disabled">Vô hiệu hóa</option>
+        <option value="warn">Khác (chờ / cảnh báo)</option>
+      </select>
+      <button id="reload" class="btn primary">Tải lại dữ liệu</button>
+      <button id="exportCsv" class="btn">Xuất CSV</button>
+    </div>
+  </header>
+
+  <div id="notice" class="notice" hidden></div>
+
+  <section id="panel-fb">
+    <div class="tbl-wrap">
+      <table id="tbl">
+        <thead>
+          <tr>
+            <th>TT</th>
+            <th>Tài khoản</th>
+            <th class="num">Số dư</th>
+            <th class="num">Ngưỡng</th>
+            <th class="num">Ngưỡng còn lại</th>
+            <th class="num">Limit</th>
+            <th class="num">Tổng tiêu</th>
+            <th>Ghi chú</th>
+            <th>Tiền tệ</th>
+            <th>Quyền</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+        <tfoot>
+          <tr id="totals">
+            <td></td>
+            <td id="t-count">0 tài khoản</td>
+            <td class="num" id="t-balance"></td>
+            <td class="num" id="t-threshold"></td>
+            <td class="num" id="t-left"></td>
+            <td class="num" id="t-cap"></td>
+            <td class="num" id="t-spent"></td>
+            <td colspan="3" class="muted" id="t-when"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </section>
+
+  <section id="panel-gg" hidden>
+    <div class="empty">
+      <h2>Google Ads — sắp có</h2>
+      <p>Google Ads không cho đọc dữ liệu qua phiên đăng nhập như Facebook. Hai hướng làm tiếp:</p>
+      <ol>
+        <li><strong>Google Ads API</strong> (chuẩn, ổn định): cần developer token + OAuth của tài khoản MCC. Có token là nối được ngay vào bảng này.</li>
+        <li><strong>Đọc trực tiếp trang ads.google.com</strong> đang mở (content script): không cần token nhưng dễ vỡ khi Google đổi giao diện.</li>
+      </ol>
+      <p>Bạn chọn hướng nào thì extension sẽ được nối thêm ở tab này.</p>
+    </div>
+  </section>
+</div>
+<script src="dashboard.js"></script>
+</body>
+</html>
