@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Quản lý TKQC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="dashboard.css">
 </head>
 <body>
@@ -65,8 +68,8 @@
       <table id="tbl">
         <thead>
           <tr>
-            <th class="sortable" data-key="statusLabel">TT</th>
-            <th class="sortable" data-key="name">Tài khoản</th>
+            <th class="sortable col-tt" data-key="statusLabel">TT</th>
+            <th class="sortable col-acc" data-key="name">Tài khoản</th>
             <th class="num sortable" data-key="balance">Số dư</th>
             <th class="num sortable" data-key="threshold">Ngưỡng</th>
             <th class="num sortable" data-key="thresholdLeft">Ngưỡng còn lại</th>
@@ -83,8 +86,8 @@
         <tbody id="rows"></tbody>
         <tfoot>
           <tr id="totals">
-            <td></td>
-            <td id="t-count">0 tài khoản</td>
+            <td class="col-tt"></td>
+            <td class="col-acc" id="t-count">0 tài khoản</td>
             <td class="num" id="t-balance"></td>
             <td class="num" id="t-threshold"></td>
             <td class="num" id="t-left"></td>

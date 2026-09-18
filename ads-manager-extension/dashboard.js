@@ -12,6 +12,8 @@ let PSORT = { key: null, dir: 1 };
 const fmt = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 });
 const money = v => (v === null || v === undefined) ? '' : fmt.format(v);
 const shortDate = s => s ? new Date(s).toLocaleDateString('vi-VN') : '';
+const adsManagerUrl = accId => `https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=${accId}`;
+const billingUrl = accId => `https://business.facebook.com/latest/billing_hub/accounts/details/?asset_id=${accId}&placement=campaign_manager`;
 
 init();
 
@@ -181,10 +183,11 @@ function render() {
     const lowLeft = a.thresholdLeft !== null && a.threshold !== null && a.thresholdLeft <= a.threshold * 0.2;
     const sp = spent(a);
     const spCell = sp === undefined ? '<span class="muted">…</span>' : (sp === null ? '<span class="muted">lỗi</span>' : money(sp));
+    const balCell = a.balance === null ? '' : `<a class="lnk" href="${billingUrl(esc(a.accountId))}" target="_blank" rel="noopener" title="Mở trang thanh toán / hóa đơn của TK">${money(a.balance)}</a>`;
     return `<tr>
-      <td><span class="status ${a.statusKind}"><span class="dot"></span>${a.statusLabel}</span></td>
-      <td><div class="acc-name">${esc(a.name)}</div><div class="acc-id">${esc(a.accountId)}</div>${a.business ? `<span class="acc-bm">${esc(a.business)}</span>` : ''}</td>
-      <td class="num">${money(a.balance)}</td>
+      <td class="col-tt"><span class="status ${a.statusKind}"><span class="dot"></span>${a.statusLabel}</span></td>
+      <td class="col-acc"><a class="acc-name lnk" href="${adsManagerUrl(esc(a.accountId))}" target="_blank" rel="noopener" title="Mở Trình quản lý quảng cáo">${esc(a.name)}</a><div class="acc-id">${esc(a.accountId)}</div>${a.business ? `<span class="acc-bm">${esc(a.business)}</span>` : ''}</td>
+      <td class="num">${balCell}</td>
       <td class="num">${money(a.threshold)}</td>
       <td class="num ${lowLeft ? 'low' : ''}">${money(a.thresholdLeft)}</td>
       <td class="num">${a.spendCap === null ? '<span class="muted">No limit</span>' : money(a.spendCap)}</td>
