@@ -4,9 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Quản lý TKQC</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="fonts.css">
 <link rel="stylesheet" href="dashboard.css">
 </head>
 <body>
@@ -49,6 +47,10 @@
       <label class="switch" title="Cảnh báo khi TK bị vô hiệu hóa hoặc sắp chạm ngưỡng (kiểm tra mỗi 30 phút)">
         <input type="checkbox" id="alerts"> Cảnh báo
       </label>
+      <div class="colmenu">
+        <button id="colBtn" class="btn" title="Chọn cột hiển thị">Cột ▾</button>
+        <div id="colPanel" class="colpanel" hidden></div>
+      </div>
       <button id="reload" class="btn primary">Tải lại dữ liệu</button>
       <button id="exportCsv" class="btn">Xuất CSV</button>
     </div>
@@ -63,41 +65,15 @@
       <button class="subtab" data-sub="page">Page</button>
     </nav>
 
-    <!-- Bảng tài khoản quảng cáo (dùng chung cho TK cá nhân & BM) -->
+    <!-- Bảng tài khoản quảng cáo (dựng động theo cột được chọn) -->
     <div class="tbl-wrap" id="wrap-acc">
       <table id="tbl">
-        <thead>
-          <tr>
-            <th class="sortable col-tt" data-key="statusLabel">TT</th>
-            <th class="sortable col-acc" data-key="name">Tài khoản</th>
-            <th class="num sortable" data-key="balance">Số dư</th>
-            <th class="num sortable" data-key="threshold">Ngưỡng</th>
-            <th class="num sortable" data-key="thresholdLeft">Ngưỡng còn lại</th>
-            <th class="num sortable" data-key="spendCap">Limit</th>
-            <th class="num sortable" data-key="spent" id="th-spent">Tổng tiêu</th>
-            <th class="sortable" data-key="disableReason">Lý do VHH</th>
-            <th class="sortable" data-key="payment">Thanh toán</th>
-            <th class="sortable" data-key="createdTime">Ngày tạo</th>
-            <th class="sortable" data-key="note">Ghi chú</th>
-            <th class="sortable" data-key="currency">Tiền tệ</th>
-            <th class="sortable" data-key="role">Quyền</th>
-          </tr>
-        </thead>
+        <thead><tr id="head-row"></tr></thead>
         <tbody id="rows"></tbody>
-        <tfoot>
-          <tr id="totals">
-            <td class="col-tt"></td>
-            <td class="col-acc" id="t-count">0 tài khoản</td>
-            <td class="num" id="t-balance"></td>
-            <td class="num" id="t-threshold"></td>
-            <td class="num" id="t-left"></td>
-            <td class="num" id="t-cap"></td>
-            <td class="num" id="t-spent"></td>
-            <td colspan="6" class="muted" id="t-when"></td>
-          </tr>
-        </tfoot>
+        <tfoot><tr id="foot-row"></tr></tfoot>
       </table>
     </div>
+    <div class="foot-note muted" id="foot-note"></div>
 
     <!-- Bảng Page -->
     <div class="tbl-wrap" id="wrap-page" hidden>

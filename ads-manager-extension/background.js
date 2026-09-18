@@ -9,12 +9,25 @@ const TOKEN_SOURCES = [
   'https://www.facebook.com/adsmanager/manage/campaigns'
 ];
 
-const ACC_FIELDS = [
+const ACC_FIELDS_BASE = [
   'name', 'account_id', 'account_status', 'disable_reason',
   'balance', 'amount_spent', 'spend_cap', 'currency',
   'adspaymentcycle{threshold_amount}', 'min_daily_budget',
   'funding_source_details', 'timezone_name', 'adtrust_dsl', 'tasks', 'created_time'
-].join(',');
+];
+// Trường có thể không tồn tại tùy version/tài khoản — dò trước khi dùng để không vỡ cả request.
+const ACC_FIELDS_RISKY = ['is_prepay_account', 'users.summary(true)'];
+
+async function supportedFields(token) {
+  const { fieldSupport } = await chrome.storage.local.get('fieldSupport');
+  if (fieldSupport) return fieldSupport;
+  const ok = [];
+  for (const f of ACC_FIELDS_RISKY) {
+    try { await graphGet(`me/adaccounts?fields=${encodeURIComponent(f)}&limit=1`, token); ok.push(f); } catch (_) {}
+  }
+  await chrome.storage.local.set({ fieldSupport: ok });
+  return ok;
+}
 
 chrome.runtime.onInstalled.addListener(setupAlarm);
 chrome.runtime.onStartup.addListener(setupAlarm);
@@ -83,11 +96,11 @@ async function withToken(fn, force) {
 }
 
 // ==== Lấy tài khoản ====
-async function fetchPaged(node, token, tag) {
+async function fetchPaged(node, token, tag, fields) {
   const out = [];
   let after = null;
   for (let page = 0; page < 25; page++) {
-    const q = `${node}?fields=${ACC_FIELDS}&limit=100${after ? '&after=' + after : ''}`;
+    const q = `${node}?fields=${fields}&limit=100${after ? '&after=' + after : ''}`;
     const json = await graphGet(q, token);
     (json.data || []).forEach(a => out.push(tag ? Object.assign({ __bm: tag }, a) : a));
     after = json.paging && json.paging.next && json.paging.cursors ? json.paging.cursors.after : null;
@@ -96,9 +109,15 @@ async function fetchPaged(node, token, tag) {
   return out;
 }
 
+async function accFields(token) {
+  const extra = await supportedFields(token);
+  return ACC_FIELDS_BASE.concat(extra).join(',');
+}
+
 async function loadAccounts(forceToken) {
   const data = await withToken(async token => {
-    const raw = await fetchPaged('me/adaccounts', token);
+    const fields = await accFields(token);
+    const raw = await fetchPaged('me/adaccounts', token, null, fields);
     const me = await graphGet('me?fields=name,id', token).catch(() => null);
     return { fetchedAt: Date.now(), user: me, accounts: raw.map(normalize) };
   }, forceToken);
@@ -108,18 +127,18 @@ async function loadAccounts(forceToken) {
 
 async function loadBM() {
   return withToken(async token => {
+    const fields = await accFields(token);
     const biz = await graphGet('me/businesses?fields=id,name&limit=100', token);
     const businesses = biz.data || [];
     const accounts = [];
     for (const b of businesses) {
       for (const edge of ['owned_ad_accounts', 'client_ad_accounts']) {
         try {
-          const list = await fetchPaged(`${b.id}/${edge}`, token, b.name);
+          const list = await fetchPaged(`${b.id}/${edge}`, token, b.name, fields);
           list.forEach(a => accounts.push(normalize(a)));
         } catch (_) { /* BM không có quyền edge này */ }
       }
     }
-    // loại trùng theo id (một TK có thể vừa owned vừa client)
     const seen = {}, uniq = [];
     accounts.forEach(a => { if (!seen[a.id]) { seen[a.id] = 1; uniq.push(a); } });
     return { fetchedAt: Date.now(), businesses: businesses.length, accounts: uniq };
@@ -217,6 +236,9 @@ function normalize(a) {
     amountSpent: money(a.amount_spent, cur),
     minDaily: money(a.min_daily_budget, cur),
     payment: funding && funding.display_string ? funding.display_string : '',
+    accountType: a.is_prepay_account === undefined ? '' : (a.is_prepay_account ? 'Trả trước' : 'Trả sau'),
+    hiddenAdmins: a.users && a.users.summary ? a.users.summary.total_count : null,
+    nextBill: null,
     timezone: a.timezone_name || '',
     currency: cur,
     role: tasks.includes('MANAGE') ? 'Quản trị viên' : (tasks.length ? 'Nhà quảng cáo' : '—'),

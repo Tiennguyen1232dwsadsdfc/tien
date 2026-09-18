@@ -1,26 +1,59 @@
 const $ = id => document.getElementById(id);
-let DATA = null;        // TK cá nhân
-let BM = null;          // TK trong Business Manager
-let PAGES = null;       // Fanpage
-let SUB = 'ca-nhan';    // sub-tab đang xem
+let DATA = null, BM = null, PAGES = null;
+let SUB = 'ca-nhan';
 let NOTES = {};
-let RANGE = null;       // {since, until, label}
-let SPEND = {};         // spent theo ngày lọc: id -> số (null=lỗi, undefined=đang tải)
+let RANGE = null, SPEND = {};
 let SORT = { key: null, dir: 1 };
 let PSORT = { key: null, dir: 1 };
+let HIDDEN = new Set();       // key các cột đang ẩn
 
 const fmt = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 });
 const money = v => (v === null || v === undefined) ? '' : fmt.format(v);
 const shortDate = s => s ? new Date(s).toLocaleDateString('vi-VN') : '';
 const adsManagerUrl = accId => `https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=${accId}`;
 const billingUrl = accId => `https://business.facebook.com/latest/billing_hub/accounts/details/?asset_id=${accId}&placement=campaign_manager`;
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const csv = s => `"${String(s).replace(/"/g, '""')}"`;
+
+// ==== Định nghĩa cột (bảng tài khoản) ====
+// fixed: luôn hiện, không cho ẩn. num: canh phải. sumKey: cột có cộng tổng.
+const COLUMNS = [
+  { key: 'status', label: 'TT', cls: 'col-tt', fixed: true, sort: 'statusLabel',
+    cell: a => `<span class="status ${a.statusKind}"><span class="dot"></span>${a.statusLabel}</span>` },
+  { key: 'account', label: 'Tài khoản', cls: 'col-acc', fixed: true, sort: 'name',
+    cell: a => `<a class="acc-name lnk" href="${adsManagerUrl(esc(a.accountId))}" target="_blank" rel="noopener" title="Mở Trình quản lý quảng cáo">${esc(a.name)}</a><div class="acc-id">${esc(a.accountId)}</div>${a.business ? `<span class="acc-bm">${esc(a.business)}</span>` : ''}`,
+    foot: rows => `${rows.length} tài khoản quảng cáo` },
+  { key: 'balance', label: 'Số dư', num: true, sort: 'balance', sumKey: 'balance',
+    cell: a => a.balance === null ? '' : `<a class="lnk" href="${billingUrl(esc(a.accountId))}" target="_blank" rel="noopener" title="Mở trang thanh toán / hóa đơn của TK">${money(a.balance)}</a>` },
+  { key: 'threshold', label: 'Ngưỡng', num: true, sort: 'threshold', sumKey: 'threshold', cell: a => money(a.threshold) },
+  { key: 'thresholdLeft', label: 'Ngưỡng còn lại', num: true, sort: 'thresholdLeft', sumKey: 'thresholdLeft',
+    cell: a => { const low = a.thresholdLeft !== null && a.threshold !== null && a.thresholdLeft <= a.threshold * 0.2; return `<span class="${low ? 'low' : ''}">${money(a.thresholdLeft)}</span>`; } },
+  { key: 'spendCap', label: 'Limit', num: true, sort: 'spendCap', sumKey: 'spendCap',
+    cell: a => a.spendCap === null ? '<span class="muted">No limit</span>' : money(a.spendCap) },
+  { key: 'spent', label: 'Tổng tiêu', num: true, sort: 'spent', dyn: true, sumSpent: true,
+    cell: a => { const sp = spent(a); return sp === undefined ? '<span class="muted">…</span>' : (sp === null ? '<span class="muted">lỗi</span>' : money(sp)); } },
+  { key: 'accountType', label: 'Loại tài khoản', sort: 'accountType', cell: a => esc(a.accountType || '') },
+  { key: 'payment', label: 'Thẻ thanh toán', sort: 'payment', cell: a => esc(a.payment || '') },
+  { key: 'nextBill', label: 'Ngày lập hóa đơn', sort: 'nextBill', cell: a => a.nextBill ? shortDate(a.nextBill) : '' },
+  { key: 'hiddenAdmins', label: 'Quản trị viên ẩn', num: true, sort: 'hiddenAdmins', cell: a => a.hiddenAdmins == null ? '' : a.hiddenAdmins },
+  { key: 'timezone', label: 'Múi giờ', sort: 'timezone', cell: a => esc(a.timezone || '') },
+  { key: 'disableReason', label: 'Lý do VHH', sort: 'disableReason', cell: a => esc(a.disableReason || '') },
+  { key: 'createdTime', label: 'Ngày tạo', sort: 'createdTime', cell: a => shortDate(a.createdTime) },
+  { key: 'note', label: 'Ghi chú', sort: 'note', cell: a => `<input class="note-input" data-id="${esc(a.id)}" value="${esc(NOTES[a.id] || '')}" placeholder="…">` },
+  { key: 'currency', label: 'Tiền tệ', sort: 'currency', cell: a => esc(a.currency) },
+  { key: 'role', label: 'Quyền', sort: 'role', cell: a => esc(a.role) }
+];
+// Ẩn mặc định vài cột ít dùng để bảng gọn khi mở lần đầu
+const DEFAULT_HIDDEN = ['nextBill', 'hiddenAdmins', 'timezone'];
 
 init();
 
 async function init() {
-  const stored = await chrome.storage.local.get(['lastData', 'notes', 'alertsEnabled']);
+  const stored = await chrome.storage.local.get(['lastData', 'notes', 'alertsEnabled', 'hiddenCols']);
   NOTES = stored.notes || {};
   $('alerts').checked = !!stored.alertsEnabled;
+  HIDDEN = new Set(stored.hiddenCols || DEFAULT_HIDDEN);
+  buildColPanel();
   if (stored.lastData) { DATA = stored.lastData; render(); }
   load(false);
 
@@ -32,39 +65,52 @@ async function init() {
   $('applyDate').addEventListener('click', applyCustomRange);
   $('alerts').addEventListener('change', () => {
     chrome.runtime.sendMessage({ type: 'setAlerts', enabled: $('alerts').checked });
-    showNotice($('alerts').checked ? 'Đã bật cảnh báo — sẽ kiểm tra mỗi 30 phút và báo khi TK bị vô hiệu hóa hoặc sắp chạm ngưỡng.' : 'Đã tắt cảnh báo.');
+    showNotice($('alerts').checked ? 'Đã bật cảnh báo — kiểm tra mỗi 30 phút và báo khi TK bị vô hiệu hóa hoặc sắp chạm ngưỡng.' : 'Đã tắt cảnh báo.');
     setTimeout(hideNotice, 4000);
   });
+
+  $('colBtn').addEventListener('click', e => { e.stopPropagation(); $('colPanel').hidden = !$('colPanel').hidden; });
+  document.addEventListener('click', e => { if (!$('colPanel').hidden && !$('colPanel').contains(e.target) && e.target !== $('colBtn')) $('colPanel').hidden = true; });
 
   document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === t));
     $('panel-fb').hidden = t.dataset.tab !== 'fb';
     $('panel-gg').hidden = t.dataset.tab !== 'gg';
   }));
-
   document.querySelectorAll('.subtab').forEach(t => t.addEventListener('click', () => {
     document.querySelectorAll('.subtab').forEach(x => x.classList.toggle('active', x === t));
     SUB = t.dataset.sub;
-    $('wrap-acc').hidden = SUB === 'page';
-    $('wrap-page').hidden = SUB !== 'page';
+    $('wrap-acc').hidden = SUB === 'page'; $('foot-note').hidden = SUB === 'page'; $('wrap-page').hidden = SUB !== 'page';
+    $('colBtn').style.display = SUB === 'page' ? 'none' : '';
     if (SUB === 'bm' && !BM) loadBM();
     if (SUB === 'page' && !PAGES) loadPages();
     render();
   }));
-
-  document.querySelectorAll('#tbl th.sortable').forEach(th => th.addEventListener('click', () => {
-    const key = th.dataset.key;
-    if (SORT.key === key) SORT.dir = -SORT.dir;
-    else { SORT.key = key; SORT.dir = (key === 'name' || key === 'statusLabel' || key === 'disableReason' || key === 'payment') ? 1 : -1; }
-    render();
-  }));
   document.querySelectorAll('#tbl-page th.sortable').forEach(th => th.addEventListener('click', () => {
     const key = th.dataset.pkey;
-    if (PSORT.key === key) PSORT.dir = -PSORT.dir;
-    else { PSORT.key = key; PSORT.dir = key === 'fans' ? -1 : 1; }
+    if (PSORT.key === key) PSORT.dir = -PSORT.dir; else { PSORT.key = key; PSORT.dir = key === 'fans' ? -1 : 1; }
     render();
   }));
 }
+
+function buildColPanel() {
+  const p = $('colPanel');
+  p.innerHTML = '<div class="colpanel-title">Chọn cột hiển thị</div>' +
+    COLUMNS.filter(c => !c.fixed).map(c =>
+      `<label><input type="checkbox" data-col="${c.key}" ${HIDDEN.has(c.key) ? '' : 'checked'}> ${c.label}</label>`).join('') +
+    '<div class="colpanel-actions"><button id="colAll" class="btn">Hiện tất cả</button></div>';
+  p.querySelectorAll('input[data-col]').forEach(cb => cb.addEventListener('change', async () => {
+    if (cb.checked) HIDDEN.delete(cb.dataset.col); else HIDDEN.add(cb.dataset.col);
+    await chrome.storage.local.set({ hiddenCols: [...HIDDEN] });
+    render();
+  }));
+  p.querySelector('#colAll').addEventListener('click', async () => {
+    HIDDEN.clear(); await chrome.storage.local.set({ hiddenCols: [] });
+    buildColPanel(); $('colPanel').hidden = false; render();
+  });
+}
+
+function visibleColumns() { return COLUMNS.filter(c => c.fixed || !HIDDEN.has(c.key)); }
 
 // ==== Tải dữ liệu ====
 function load(forceToken) {
@@ -73,8 +119,7 @@ function load(forceToken) {
     btn.disabled = false; btn.textContent = 'Tải lại dữ liệu';
     if (chrome.runtime.lastError) { showNotice(chrome.runtime.lastError.message, true); return; }
     if (!res.ok) { showNotice(res.error, true); return; }
-    hideNotice(); DATA = res.data; render();
-    if (RANGE) loadSpend();
+    hideNotice(); DATA = res.data; render(); if (RANGE) loadSpend();
   });
 }
 function loadBM() {
@@ -95,7 +140,6 @@ function loadPages() {
 // ==== Lọc theo ngày ====
 function ymd(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 function dmy(s) { const [y, m, d] = s.split('-'); return `${d}/${m}/${y}`; }
-
 function onPresetChange() {
   const v = $('datePreset').value;
   $('customRange').hidden = v !== 'custom';
@@ -118,11 +162,7 @@ function applyCustomRange() {
   if (since > until) { showNotice('Ngày bắt đầu phải trước ngày kết thúc.'); return; }
   hideNotice(); setRange({ since, until, label: `${dmy(since)}–${dmy(until)}` });
 }
-function setRange(range) {
-  RANGE = range; SPEND = {};
-  $('th-spent').childNodes[0].textContent = range ? 'Tiêu theo ngày lọc' : 'Tổng tiêu';
-  render(); if (range) loadSpend();
-}
+function setRange(range) { RANGE = range; SPEND = {}; render(); if (range) loadSpend(); }
 function loadSpend() {
   showNotice(`Đang tải chi tiêu ${RANGE.label}…`);
   const asked = RANGE;
@@ -134,14 +174,10 @@ function loadSpend() {
 }
 function spent(a) { if (!RANGE) return a.amountSpent; return a.id in SPEND ? SPEND[a.id] : undefined; }
 
-// ==== Hiển thị ====
+// ==== Tiện ích hiển thị ====
 function showNotice(msg, isError) { const n = $('notice'); n.textContent = msg; n.classList.toggle('error', !!isError); n.hidden = false; }
 function hideNotice() { $('notice').hidden = true; }
-
-function currentAccounts() {
-  if (SUB === 'bm') return (BM && BM.accounts) || [];
-  return (DATA && DATA.accounts) || [];
-}
+function currentAccounts() { return SUB === 'bm' ? ((BM && BM.accounts) || []) : ((DATA && DATA.accounts) || []); }
 
 function sortValue(a, key) {
   if (key === 'spent') return spent(a);
@@ -149,7 +185,6 @@ function sortValue(a, key) {
   if (key === 'createdTime') return a.createdTime ? Date.parse(a.createdTime) : null;
   return a[key];
 }
-
 function visibleAccounts() {
   const q = $('search').value.trim().toLowerCase();
   const st = $('statusFilter').value;
@@ -158,66 +193,62 @@ function visibleAccounts() {
     if (!q) return true;
     return (a.name || '').toLowerCase().includes(q) || String(a.accountId || '').includes(q) || (NOTES[a.id] || '').toLowerCase().includes(q);
   });
-  if (SORT.key) {
-    rows = rows.slice().sort((x, y) => {
-      const vx = sortValue(x, SORT.key), vy = sortValue(y, SORT.key);
-      const nx = vx === null || vx === undefined, ny = vy === null || vy === undefined;
-      if (nx && ny) return 0; if (nx) return 1; if (ny) return -1;
-      const cmp = typeof vx === 'number' && typeof vy === 'number' ? vx - vy : String(vx).localeCompare(String(vy), 'vi');
-      return cmp * SORT.dir;
-    });
-  }
+  if (SORT.key) rows = rows.slice().sort((x, y) => {
+    const vx = sortValue(x, SORT.key), vy = sortValue(y, SORT.key);
+    const nx = vx === null || vx === undefined, ny = vy === null || vy === undefined;
+    if (nx && ny) return 0; if (nx) return 1; if (ny) return -1;
+    const cmp = typeof vx === 'number' && typeof vy === 'number' ? vx - vy : String(vx).localeCompare(String(vy), 'vi');
+    return cmp * SORT.dir;
+  });
   return rows;
 }
 
 function render() {
   if (SUB === 'page') return renderPages();
-  renderIndicators('#tbl', SORT);
+  const cols = visibleColumns();
   const rows = visibleAccounts();
   const src = SUB === 'bm' ? BM : DATA;
   $('who').textContent = DATA && DATA.user
     ? `Đăng nhập: ${DATA.user.name}` + (SUB === 'bm' && BM ? ` · ${BM.businesses} BM` : ` · ${DATA.accounts.length} TKQC`)
     : (src ? `${currentAccounts().length} TKQC` : 'Chưa tải dữ liệu');
 
-  $('rows').innerHTML = rows.map(a => {
-    const lowLeft = a.thresholdLeft !== null && a.threshold !== null && a.thresholdLeft <= a.threshold * 0.2;
-    const sp = spent(a);
-    const spCell = sp === undefined ? '<span class="muted">…</span>' : (sp === null ? '<span class="muted">lỗi</span>' : money(sp));
-    const balCell = a.balance === null ? '' : `<a class="lnk" href="${billingUrl(esc(a.accountId))}" target="_blank" rel="noopener" title="Mở trang thanh toán / hóa đơn của TK">${money(a.balance)}</a>`;
-    return `<tr>
-      <td class="col-tt"><span class="status ${a.statusKind}"><span class="dot"></span>${a.statusLabel}</span></td>
-      <td class="col-acc"><a class="acc-name lnk" href="${adsManagerUrl(esc(a.accountId))}" target="_blank" rel="noopener" title="Mở Trình quản lý quảng cáo">${esc(a.name)}</a><div class="acc-id">${esc(a.accountId)}</div>${a.business ? `<span class="acc-bm">${esc(a.business)}</span>` : ''}</td>
-      <td class="num">${balCell}</td>
-      <td class="num">${money(a.threshold)}</td>
-      <td class="num ${lowLeft ? 'low' : ''}">${money(a.thresholdLeft)}</td>
-      <td class="num">${a.spendCap === null ? '<span class="muted">No limit</span>' : money(a.spendCap)}</td>
-      <td class="num">${spCell}</td>
-      <td>${a.disableReason ? esc(a.disableReason) : ''}</td>
-      <td>${esc(a.payment)}</td>
-      <td>${shortDate(a.createdTime)}</td>
-      <td><input class="note-input" data-id="${esc(a.id)}" value="${esc(NOTES[a.id] || '')}" placeholder="…"></td>
-      <td>${esc(a.currency)}</td>
-      <td>${esc(a.role)}</td>
-    </tr>`;
+  // tiêu đề
+  $('head-row').innerHTML = cols.map(c => {
+    const label = c.dyn ? (RANGE ? 'Tiêu theo ngày lọc' : 'Tổng tiêu') : c.label;
+    const ind = SORT.key === c.sort ? `<span class="sort-ind">${SORT.dir === 1 ? '▲' : '▼'}</span>` : '';
+    return `<th class="sortable ${c.cls || ''} ${c.num ? 'num' : ''}" data-sort="${c.sort}">${esc(label)}${ind}</th>`;
   }).join('');
+  $('head-row').querySelectorAll('th.sortable').forEach(th => th.addEventListener('click', () => {
+    const key = th.dataset.sort;
+    if (SORT.key === key) SORT.dir = -SORT.dir;
+    else { SORT.key = key; SORT.dir = ['name', 'statusLabel', 'disableReason', 'payment', 'accountType', 'timezone', 'currency', 'role'].includes(key) ? 1 : -1; }
+    render();
+  }));
 
-  document.querySelectorAll('.note-input').forEach(inp => inp.addEventListener('change', async () => {
+  // thân bảng
+  $('rows').innerHTML = rows.map(a =>
+    '<tr>' + cols.map(c => `<td class="${c.cls || ''} ${c.num ? 'num' : ''}">${c.cell(a)}</td>`).join('') + '</tr>'
+  ).join('');
+  $('rows').querySelectorAll('.note-input').forEach(inp => inp.addEventListener('change', async () => {
     NOTES[inp.dataset.id] = inp.value; await chrome.storage.local.set({ notes: NOTES });
   }));
 
-  const sum = get => {
+  // tổng cộng
+  const sumFor = key => {
     const byCur = {};
-    rows.forEach(a => { const v = get(a); if (typeof v === 'number') byCur[a.currency] = (byCur[a.currency] || 0) + v; });
+    rows.forEach(a => { const v = key === 'spent' ? spent(a) : a[key]; if (typeof v === 'number') byCur[a.currency] = (byCur[a.currency] || 0) + v; });
     const curs = Object.keys(byCur);
     return curs.map(c => `${fmt.format(byCur[c])}${curs.length > 1 ? ' ' + c : ''}`).join(' + ');
   };
-  $('t-count').textContent = `${rows.length} tài khoản quảng cáo`;
-  $('t-balance').textContent = sum(a => a.balance);
-  $('t-threshold').textContent = sum(a => a.threshold);
-  $('t-left').textContent = sum(a => a.thresholdLeft);
-  $('t-cap').textContent = sum(a => a.spendCap);
-  $('t-spent').textContent = sum(a => spent(a));
-  $('t-when').textContent = (RANGE ? `Chi tiêu: ${RANGE.label} · ` : '') + (src && src.fetchedAt ? 'Cập nhật: ' + new Date(src.fetchedAt).toLocaleString('vi-VN') : '');
+  $('foot-row').innerHTML = cols.map(c => {
+    let html = '';
+    if (c.foot) html = c.foot(rows);
+    else if (c.sumSpent) html = sumFor('spent');
+    else if (c.sumKey) html = sumFor(c.sumKey);
+    return `<td class="${c.cls || ''} ${c.num ? 'num' : ''}">${html}</td>`;
+  }).join('');
+
+  $('foot-note').textContent = (RANGE ? `Chi tiêu: ${RANGE.label} · ` : '') + (src && src.fetchedAt ? 'Cập nhật: ' + new Date(src.fetchedAt).toLocaleString('vi-VN') : '');
 }
 
 function renderPages() {
@@ -243,7 +274,7 @@ function renderPages() {
   $('who').textContent = PAGES ? `${(PAGES.pages || []).length} Page` : 'Đang tải Page…';
 }
 
-function renderIndicators(sel, sort, attr = 'key') {
+function renderIndicators(sel, sort, attr) {
   document.querySelectorAll(`${sel} th.sortable`).forEach(th => {
     let ind = th.querySelector('.sort-ind');
     if (!ind) { ind = document.createElement('span'); ind.className = 'sort-ind'; th.appendChild(ind); }
@@ -254,18 +285,37 @@ function renderIndicators(sel, sort, attr = 'key') {
 function exportCsv() {
   if (SUB === 'page') {
     const rows = ((PAGES && PAGES.pages) || []);
-    const head = ['Tên Page', 'Danh mục', 'Người theo dõi', 'Xác minh', 'Quyền', 'Liên kết'];
-    download(head, rows.map(p => [csv(p.name), csv(p.category), p.fans ?? '', p.verified ? 'Có' : '', p.role, p.link || '']), 'pages');
+    download(['Tên Page', 'Danh mục', 'Người theo dõi', 'Xác minh', 'Quyền', 'Liên kết'],
+      rows.map(p => [csv(p.name), csv(p.category), p.fans ?? '', p.verified ? 'Có' : '', p.role, p.link || '']), 'pages');
     return;
   }
+  const cols = visibleColumns();
   const rows = visibleAccounts();
-  const spentHead = RANGE ? `Tiêu ${RANGE.label}` : 'Tổng tiêu';
-  const head = ['Trạng thái', 'Tên tài khoản', 'ID', 'BM', 'Số dư', 'Ngưỡng', 'Ngưỡng còn lại', 'Limit', spentHead, 'Lý do VHH', 'Thanh toán', 'Ngày tạo', 'Tiền tệ', 'Quyền', 'Ghi chú'];
-  download(head, rows.map(a => [
-    a.statusLabel, csv(a.name), `="${a.accountId}"`, csv(a.business || ''),
-    a.balance ?? '', a.threshold ?? '', a.thresholdLeft ?? '', a.spendCap ?? '', spent(a) ?? '',
-    csv(a.disableReason), csv(a.payment), shortDate(a.createdTime), a.currency, a.role, csv(NOTES[a.id] || '')
-  ]), SUB === 'bm' ? 'tkqc-bm' : 'tkqc');
+  const head = cols.map(c => c.dyn ? (RANGE ? `Tiêu ${RANGE.label}` : 'Tổng tiêu') : c.label).concat('ID');
+  const body = rows.map(a => cols.map(c => csvCell(c, a)).concat(`="${a.accountId}"`));
+  download(head, body, SUB === 'bm' ? 'tkqc-bm' : 'tkqc');
+}
+function csvCell(c, a) {
+  switch (c.key) {
+    case 'status': return a.statusLabel;
+    case 'account': return csv(a.name);
+    case 'balance': return a.balance ?? '';
+    case 'threshold': return a.threshold ?? '';
+    case 'thresholdLeft': return a.thresholdLeft ?? '';
+    case 'spendCap': return a.spendCap ?? '';
+    case 'spent': return spent(a) ?? '';
+    case 'accountType': return csv(a.accountType || '');
+    case 'payment': return csv(a.payment || '');
+    case 'nextBill': return a.nextBill ? shortDate(a.nextBill) : '';
+    case 'hiddenAdmins': return a.hiddenAdmins ?? '';
+    case 'timezone': return csv(a.timezone || '');
+    case 'disableReason': return csv(a.disableReason || '');
+    case 'createdTime': return shortDate(a.createdTime);
+    case 'note': return csv(NOTES[a.id] || '');
+    case 'currency': return a.currency;
+    case 'role': return a.role;
+    default: return '';
+  }
 }
 function download(head, rows, name) {
   const lines = [head.join(',')].concat(rows.map(r => r.join(',')));
@@ -274,6 +324,3 @@ function download(head, rows, name) {
   a.href = URL.createObjectURL(blob); a.download = `${name}-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
   URL.revokeObjectURL(a.href);
 }
-
-const csv = s => `"${String(s).replace(/"/g, '""')}"`;
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
