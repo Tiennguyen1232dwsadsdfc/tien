@@ -21,13 +21,28 @@
       <button class="tab" data-tab="gg">Google Ads</button>
     </nav>
     <div class="actions">
-      <input id="search" type="search" placeholder="Tìm theo tên / ID tài khoản…">
+      <input id="search" type="search" placeholder="Tìm theo tên / ID / ghi chú…">
       <select id="statusFilter">
         <option value="">Tất cả trạng thái</option>
         <option value="active">Hoạt động</option>
         <option value="disabled">Vô hiệu hóa</option>
         <option value="warn">Khác (chờ / cảnh báo)</option>
       </select>
+      <select id="datePreset" title="Khoảng ngày tính cột Tổng tiêu">
+        <option value="all">Tổng tiêu: toàn bộ</option>
+        <option value="today">Hôm nay</option>
+        <option value="yesterday">Hôm qua</option>
+        <option value="7d">7 ngày qua</option>
+        <option value="30d">30 ngày qua</option>
+        <option value="thismonth">Tháng này</option>
+        <option value="lastmonth">Tháng trước</option>
+        <option value="custom">Tùy chọn…</option>
+      </select>
+      <span id="customRange" hidden>
+        <input type="date" id="dateFrom">
+        <input type="date" id="dateTo">
+        <button id="applyDate" class="btn">Áp dụng</button>
+      </span>
       <button id="reload" class="btn primary">Tải lại dữ liệu</button>
       <button id="exportCsv" class="btn">Xuất CSV</button>
     </div>
@@ -40,16 +55,16 @@
       <table id="tbl">
         <thead>
           <tr>
-            <th>TT</th>
-            <th>Tài khoản</th>
-            <th class="num">Số dư</th>
-            <th class="num">Ngưỡng</th>
-            <th class="num">Ngưỡng còn lại</th>
-            <th class="num">Limit</th>
-            <th class="num">Tổng tiêu</th>
-            <th>Ghi chú</th>
-            <th>Tiền tệ</th>
-            <th>Quyền</th>
+            <th class="sortable" data-key="statusLabel">TT</th>
+            <th class="sortable" data-key="name">Tài khoản</th>
+            <th class="num sortable" data-key="balance">Số dư</th>
+            <th class="num sortable" data-key="threshold">Ngưỡng</th>
+            <th class="num sortable" data-key="thresholdLeft">Ngưỡng còn lại</th>
+            <th class="num sortable" data-key="spendCap">Limit</th>
+            <th class="num sortable" data-key="spent" id="th-spent">Tổng tiêu</th>
+            <th class="sortable" data-key="note">Ghi chú</th>
+            <th class="sortable" data-key="currency">Tiền tệ</th>
+            <th class="sortable" data-key="role">Quyền</th>
           </tr>
         </thead>
         <tbody id="rows"></tbody>

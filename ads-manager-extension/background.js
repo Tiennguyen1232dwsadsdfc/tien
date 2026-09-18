@@ -26,6 +26,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       .catch(err => sendResponse({ ok: false, error: err.message }));
     return true; // giữ kênh mở cho phản hồi bất đồng bộ
   }
+  if (msg.type === 'loadSpend') {
+    loadSpend(msg.since, msg.until)
+      .then(data => sendResponse({ ok: true, data }))
+      .catch(err => sendResponse({ ok: false, error: err.message }));
+    return true;
+  }
 });
 
 async function getToken(force) {
@@ -72,6 +78,34 @@ async function fetchAllAccounts(token) {
       : null;
   }
   return accounts;
+}
+
+// Chi tiêu theo khoảng ngày: gọi Insights API cho từng tài khoản.
+// Insights trả spend theo ĐƠN VỊ TIỀN TỆ của tài khoản (không phải cents).
+async function loadSpend(since, until) {
+  let token = await getToken(false);
+  try {
+    await graphGet('me?fields=id', token);
+  } catch (e) {
+    if (e.code === 190) token = await getToken(true);
+    else throw e;
+  }
+  const { lastData } = await chrome.storage.local.get('lastData');
+  const ids = ((lastData && lastData.accounts) || []).map(a => a.id);
+  const timeRange = encodeURIComponent(JSON.stringify({ since, until }));
+  const out = {};
+  const CHUNK = 8;
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    await Promise.all(ids.slice(i, i + CHUNK).map(async id => {
+      try {
+        const j = await graphGet(`${id}/insights?fields=spend&time_range=${timeRange}`, token);
+        out[id] = j.data && j.data[0] && j.data[0].spend !== undefined ? Number(j.data[0].spend) : 0;
+      } catch (_) {
+        out[id] = null; // tài khoản không đọc được insights
+      }
+    }));
+  }
+  return out;
 }
 
 async function loadAccounts(forceToken) {
