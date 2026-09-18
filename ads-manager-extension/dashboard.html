@@ -43,6 +43,9 @@
         <input type="date" id="dateTo">
         <button id="applyDate" class="btn">Áp dụng</button>
       </span>
+      <label class="switch" title="Cảnh báo khi TK bị vô hiệu hóa hoặc sắp chạm ngưỡng (kiểm tra mỗi 30 phút)">
+        <input type="checkbox" id="alerts"> Cảnh báo
+      </label>
       <button id="reload" class="btn primary">Tải lại dữ liệu</button>
       <button id="exportCsv" class="btn">Xuất CSV</button>
     </div>
@@ -51,7 +54,14 @@
   <div id="notice" class="notice" hidden></div>
 
   <section id="panel-fb">
-    <div class="tbl-wrap">
+    <nav class="subtabs">
+      <button class="subtab active" data-sub="ca-nhan">TK cá nhân</button>
+      <button class="subtab" data-sub="bm">TK BM</button>
+      <button class="subtab" data-sub="page">Page</button>
+    </nav>
+
+    <!-- Bảng tài khoản quảng cáo (dùng chung cho TK cá nhân & BM) -->
+    <div class="tbl-wrap" id="wrap-acc">
       <table id="tbl">
         <thead>
           <tr>
@@ -62,6 +72,9 @@
             <th class="num sortable" data-key="thresholdLeft">Ngưỡng còn lại</th>
             <th class="num sortable" data-key="spendCap">Limit</th>
             <th class="num sortable" data-key="spent" id="th-spent">Tổng tiêu</th>
+            <th class="sortable" data-key="disableReason">Lý do VHH</th>
+            <th class="sortable" data-key="payment">Thanh toán</th>
+            <th class="sortable" data-key="createdTime">Ngày tạo</th>
             <th class="sortable" data-key="note">Ghi chú</th>
             <th class="sortable" data-key="currency">Tiền tệ</th>
             <th class="sortable" data-key="role">Quyền</th>
@@ -77,9 +90,27 @@
             <td class="num" id="t-left"></td>
             <td class="num" id="t-cap"></td>
             <td class="num" id="t-spent"></td>
-            <td colspan="3" class="muted" id="t-when"></td>
+            <td colspan="6" class="muted" id="t-when"></td>
           </tr>
         </tfoot>
+      </table>
+    </div>
+
+    <!-- Bảng Page -->
+    <div class="tbl-wrap" id="wrap-page" hidden>
+      <table id="tbl-page">
+        <thead>
+          <tr>
+            <th class="sortable" data-pkey="name">Tên Page</th>
+            <th class="sortable" data-pkey="category">Danh mục</th>
+            <th class="num sortable" data-pkey="fans">Người theo dõi</th>
+            <th class="sortable" data-pkey="verified">Xác minh</th>
+            <th class="sortable" data-pkey="role">Quyền</th>
+            <th>Liên kết</th>
+          </tr>
+        </thead>
+        <tbody id="rows-page"></tbody>
+        <tfoot><tr><td id="p-count" colspan="6" class="muted">0 Page</td></tr></tfoot>
       </table>
     </div>
   </section>
@@ -89,10 +120,9 @@
       <h2>Google Ads — sắp có</h2>
       <p>Google Ads không cho đọc dữ liệu qua phiên đăng nhập như Facebook. Hai hướng làm tiếp:</p>
       <ol>
-        <li><strong>Google Ads API</strong> (chuẩn, ổn định): cần developer token + OAuth của tài khoản MCC. Có token là nối được ngay vào bảng này.</li>
+        <li><strong>Google Ads API</strong> (chuẩn, ổn định): cần developer token + OAuth của tài khoản MCC.</li>
         <li><strong>Đọc trực tiếp trang ads.google.com</strong> đang mở (content script): không cần token nhưng dễ vỡ khi Google đổi giao diện.</li>
       </ol>
-      <p>Bạn chọn hướng nào thì extension sẽ được nối thêm ở tab này.</p>
     </div>
   </section>
 </div>

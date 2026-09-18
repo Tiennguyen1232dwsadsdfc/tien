@@ -14,23 +14,32 @@ tiền tệ, quyền — kèm tìm kiếm, lọc trạng thái, ghi chú riêng 
 
 ## Cách hoạt động
 
-- Tiện ích dùng **chính phiên đăng nhập Facebook của bạn** trên trình duyệt:
-  lấy access token từ trang Ads Manager rồi gọi Graph API
-  `me/adaccounts` để đọc danh sách TKQC. Không gửi dữ liệu đi đâu khác —
-  mọi thứ (token, dữ liệu, ghi chú) chỉ lưu trong `chrome.storage.local`
-  trên máy bạn.
-- **Ngưỡng còn lại** = ngưỡng thanh toán − số dư nợ hiện tại; khi còn ≤ 20%
-  sẽ tô đỏ để biết tài khoản sắp bị charge.
-- Token hết hạn sẽ tự lấy lại; nếu báo lỗi, mở facebook.com đăng nhập rồi
-  bấm **Tải lại dữ liệu**.
+- **Bắt token kiểu SMIT:** extension bơm một hook vào trang facebook.com để chặn
+  các lời gọi `fetch`/XHR mà Facebook tự thực hiện và lấy access token thật —
+  ổn định hơn quét HTML. Nếu chưa có token, tự lấy dự phòng từ trang Ads Manager.
+- Dùng token đó gọi Graph API cho **TK cá nhân** (`me/adaccounts`),
+  **TK BM** (`me/businesses` → owned/client ad accounts) và **Page** (`me/accounts`).
+- **Ngưỡng còn lại** = ngưỡng thanh toán − số dư nợ; còn ≤ 20% sẽ tô đỏ.
+- **Cảnh báo tự động:** bật ô "Cảnh báo" → mỗi 30 phút kiểm tra nền, gửi thông báo
+  khi TK vừa bị vô hiệu hóa hoặc sắp chạm ngưỡng.
+- Mọi thứ (token, dữ liệu, ghi chú) chỉ lưu trong `chrome.storage.local` trên máy bạn.
+
+## Chức năng
+
+- Bảng full màn hình, ghim tiêu đề + hàng tổng, bấm tiêu đề để sắp xếp mọi cột.
+- Lọc chi tiêu theo ngày (hôm nay / 7 ngày / tháng này / tùy chọn…) qua Insights API.
+- Tìm kiếm, lọc trạng thái, ghi chú riêng từng TK, xuất CSV.
+- Cột chi tiết: lý do vô hiệu hóa, phương thức thanh toán, ngày tạo, tên BM.
 
 ## Cấu trúc
 
 | File | Vai trò |
 | --- | --- |
 | `manifest.json` | Khai báo extension (Manifest V3) |
-| `background.js` | Lấy token, gọi Graph API, chuẩn hóa dữ liệu |
-| `dashboard.html/css/js` | Bảng quản lý (tab Facebook Ads / Google Ads) |
+| `content-scripts/hook.js` | Chặn fetch/XHR trong trang FB để bắt token (world MAIN) |
+| `content-scripts/relay.js` | Chuyển token về service worker (world ISOLATED) |
+| `background.js` | Quản token, gọi Graph API, chi tiêu theo ngày, cảnh báo |
+| `dashboard.html/css/js` | Bảng quản lý (TK cá nhân / BM / Page) |
 
 ## Google Ads
 
