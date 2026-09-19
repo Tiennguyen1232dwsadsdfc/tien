@@ -16,7 +16,7 @@ const ACC_FIELDS_BASE = [
   'funding_source_details', 'timezone_name', 'adtrust_dsl', 'tasks', 'created_time'
 ];
 // Trường có thể không tồn tại tùy version/tài khoản — dò trước khi dùng để không vỡ cả request.
-const ACC_FIELDS_RISKY = ['is_prepay_account', 'users.summary(true)'];
+const ACC_FIELDS_RISKY = ['is_prepay_account', 'users.summary(true)', 'business{id,name}', 'owner'];
 
 async function supportedFields(token) {
   const { fieldSupport } = await chrome.storage.local.get('fieldSupport');
@@ -260,11 +260,17 @@ function normalize(a) {
   const status = STATUS[a.account_status] || { label: 'Không rõ (' + a.account_status + ')', kind: 'warn' };
   const tasks = a.tasks || [];
   const funding = a.funding_source_details;
+  const biz = a.business;
+  const rootId = biz && biz.id ? biz.id : (a.owner || '');
+  const rootType = biz && biz.id ? 'BM' : (a.owner ? 'VIA' : '');
   return {
     id: a.id,
     accountId: a.account_id,
     name: a.name,
-    business: a.__bm || null,
+    business: a.__bm || (biz && biz.name) || null,
+    businessId: biz && biz.id ? biz.id : null,
+    rootId,
+    rootType,
     statusCode: a.account_status,
     statusLabel: status.label,
     statusKind: status.kind,

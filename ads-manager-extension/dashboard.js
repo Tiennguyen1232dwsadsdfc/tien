@@ -35,6 +35,7 @@ const curOf = a => TARGET || a.currency;
 const shortDate = s => s ? new Date(s).toLocaleDateString('vi-VN') : '';
 const adsManagerUrl = accId => `https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=${accId}`;
 const billingUrl = accId => `https://business.facebook.com/latest/billing_hub/accounts/details/?asset_id=${accId}&placement=campaign_manager`;
+const settingsUrl = (accId, bizId) => `https://adsmanager.facebook.com/adsmanager/manage/ad_account_settings/ad_account_setup?act=${accId}${bizId ? `&business_id=${bizId}` : ''}`;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const csv = s => `"${String(s).replace(/"/g, '""')}"`;
 
@@ -46,9 +47,12 @@ const COLUMNS = [
   { key: 'account', label: 'Tài khoản', cls: 'col-acc', fixed: true, sort: 'name', w: 260,
     cell: a => `<div class="acc-head"><a class="acc-name lnk" href="${adsManagerUrl(esc(a.accountId))}" target="_blank" rel="noopener" title="${esc(a.name)}">${esc(a.name)}</a><button class="dots" data-id="${esc(a.id)}" title="Tùy chọn">⋯</button></div><div class="acc-id trunc">${esc(a.accountId)}${a.business ? ' · ' + esc(a.business) : ''}</div>`,
     foot: rows => `${rows.length} tài khoản quảng cáo` },
+  { key: 'rootId', label: 'ID gốc', sort: 'rootId', w: 185,
+    cell: a => a.rootId ? `${esc(a.rootId)} <span class="muted">${esc(a.rootType)}</span>` : '' },
   { key: 'balance', label: 'Số dư', num: true, sort: 'balance', sumKey: 'balance', w: 120,
     cell: a => a.balance === null ? '' : `<a class="lnk" href="${billingUrl(esc(a.accountId))}" target="_blank" rel="noopener" title="Mở trang thanh toán / hóa đơn của TK">${mval(a, a.balance)}</a>` },
-  { key: 'threshold', label: 'Ngưỡng', num: true, sort: 'threshold', sumKey: 'threshold', w: 120, cell: a => mval(a, a.threshold) },
+  { key: 'threshold', label: 'Ngưỡng', num: true, sort: 'threshold', sumKey: 'threshold', w: 120,
+    cell: a => a.threshold === null ? '' : `<a class="lnk" href="${settingsUrl(esc(a.accountId), a.businessId)}" target="_blank" rel="noopener" title="Mở Thiết lập tài khoản quảng cáo">${mval(a, a.threshold)}</a>` },
   { key: 'thresholdLeft', label: 'Ngưỡng còn lại', num: true, sort: 'thresholdLeft', sumKey: 'thresholdLeft', w: 130,
     cell: a => { const low = a.thresholdLeft !== null && a.threshold !== null && a.thresholdLeft <= a.threshold * 0.2; return `<span class="${low ? 'low' : ''}">${mval(a, a.thresholdLeft)}</span>`; } },
   { key: 'spendCap', label: 'Limit', num: true, sort: 'spendCap', sumKey: 'spendCap', w: 115,
@@ -405,6 +409,7 @@ function csvCell(c, a) {
   switch (c.key) {
     case 'status': return a.statusLabel;
     case 'account': return csv(a.name);
+    case 'rootId': return csv((a.rootId || '') + (a.rootType ? ' ' + a.rootType : ''));
     case 'balance': return a.balance ?? '';
     case 'threshold': return a.threshold ?? '';
     case 'thresholdLeft': return a.thresholdLeft ?? '';
