@@ -57,8 +57,21 @@ const COLUMNS = [
     cell: a => { const low = a.thresholdLeft !== null && a.threshold !== null && a.thresholdLeft <= a.threshold * 0.2; return `<span class="${low ? 'low' : ''}">${mval(a, a.thresholdLeft)}</span>`; } },
   { key: 'spendCap', label: 'Limit', num: true, sort: 'spendCap', sumKey: 'spendCap', w: 115,
     cell: a => a.spendCap === null ? '<span class="muted">No limit</span>' : mval(a, a.spendCap) },
-  { key: 'setLimit', label: 'Đặt limit', sort: 'spendCap', w: 110,
-    cell: a => `<button class="setlim" data-id="${esc(a.id)}" title="Đặt giới hạn chi tiêu cho tài khoản">Đặt limit</button>` },
+  { key: 'setLimit', label: 'Đặt limit', sort: 'spendCap', w: 150,
+    cell: a => {
+      const cap = a.spendCap, sp = a.amountSpent || 0;
+      let bar, tip;
+      if (cap && cap > 0) {
+        const pct = Math.min(sp / cap * 100, 100);
+        const cls = pct >= 90 ? 'danger' : (pct >= 70 ? 'warn' : '');
+        tip = `Đã tiêu ${mval(a, sp)} / Limit ${mval(a, cap)} ${curOf(a)} (${pct.toFixed(0)}%)`;
+        bar = `<div class="lim-bar ${cls}"><i style="width:${pct}%"></i></div>`;
+      } else {
+        tip = 'Chưa đặt giới hạn (No limit)';
+        bar = `<div class="lim-bar none"><i></i></div>`;
+      }
+      return `<div class="lim-wrap" title="${esc(tip)}">${bar}<button class="setlim" data-id="${esc(a.id)}" title="Đặt giới hạn chi tiêu cho tài khoản">Đặt limit</button></div>`;
+    } },
   { key: 'spent', label: 'Tổng tiêu', num: true, sort: 'spent', dyn: true, sumSpent: true, w: 120,
     cell: a => { const sp = spent(a); return sp === undefined ? '<span class="muted">…</span>' : (sp === null ? '<span class="muted">lỗi</span>' : mval(a, sp)); } },
   { key: 'accountType', label: 'Loại tài khoản', sort: 'accountType', w: 115, cell: a => esc(a.accountType || '') },
