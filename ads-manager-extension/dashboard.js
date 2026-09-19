@@ -6,6 +6,9 @@ let RANGE = null, SPEND = {};
 let SORT = { key: null, dir: 1 };
 let PSORT = { key: null, dir: 1 };
 let HIDDEN = new Set();       // key các cột đang ẩn
+let WIDTHS = {};             // độ rộng cột do người dùng chỉnh
+let RESIZING = null;         // trạng thái đang kéo giãn cột
+let JUST_RESIZED_AT = 0;     // mốc thời gian vừa kéo xong (bỏ qua click sắp xếp)
 let TARGET = '';              // tiền tệ quy đổi ('' = tiền gốc)
 let RATES = null;            // tỉ giá đơn vị / 1 USD
 
@@ -38,30 +41,30 @@ const csv = s => `"${String(s).replace(/"/g, '""')}"`;
 // ==== Định nghĩa cột (bảng tài khoản) ====
 // fixed: luôn hiện, không cho ẩn. num: canh phải. sumKey: cột có cộng tổng.
 const COLUMNS = [
-  { key: 'status', label: 'TT', cls: 'col-tt', fixed: true, sort: 'statusLabel',
+  { key: 'status', label: 'TT', cls: 'col-tt', fixed: true, sort: 'statusLabel', w: 130, noresize: true,
     cell: a => `<span class="status ${a.statusKind}"><span class="dot"></span>${a.statusLabel}</span>` },
-  { key: 'account', label: 'Tài khoản', cls: 'col-acc', fixed: true, sort: 'name',
-    cell: a => `<div class="acc-head"><a class="acc-name lnk" href="${adsManagerUrl(esc(a.accountId))}" target="_blank" rel="noopener" title="Mở Trình quản lý quảng cáo">${esc(a.name)}</a><button class="dots" data-id="${esc(a.id)}" title="Tùy chọn">⋯</button></div><div class="acc-id">${esc(a.accountId)}</div>${a.business ? `<span class="acc-bm">${esc(a.business)}</span>` : ''}`,
+  { key: 'account', label: 'Tài khoản', cls: 'col-acc', fixed: true, sort: 'name', w: 260,
+    cell: a => `<div class="acc-head"><a class="acc-name lnk" href="${adsManagerUrl(esc(a.accountId))}" target="_blank" rel="noopener" title="${esc(a.name)}">${esc(a.name)}</a><button class="dots" data-id="${esc(a.id)}" title="Tùy chọn">⋯</button></div><div class="acc-id trunc">${esc(a.accountId)}${a.business ? ' · ' + esc(a.business) : ''}</div>`,
     foot: rows => `${rows.length} tài khoản quảng cáo` },
-  { key: 'balance', label: 'Số dư', num: true, sort: 'balance', sumKey: 'balance',
+  { key: 'balance', label: 'Số dư', num: true, sort: 'balance', sumKey: 'balance', w: 120,
     cell: a => a.balance === null ? '' : `<a class="lnk" href="${billingUrl(esc(a.accountId))}" target="_blank" rel="noopener" title="Mở trang thanh toán / hóa đơn của TK">${mval(a, a.balance)}</a>` },
-  { key: 'threshold', label: 'Ngưỡng', num: true, sort: 'threshold', sumKey: 'threshold', cell: a => mval(a, a.threshold) },
-  { key: 'thresholdLeft', label: 'Ngưỡng còn lại', num: true, sort: 'thresholdLeft', sumKey: 'thresholdLeft',
+  { key: 'threshold', label: 'Ngưỡng', num: true, sort: 'threshold', sumKey: 'threshold', w: 120, cell: a => mval(a, a.threshold) },
+  { key: 'thresholdLeft', label: 'Ngưỡng còn lại', num: true, sort: 'thresholdLeft', sumKey: 'thresholdLeft', w: 130,
     cell: a => { const low = a.thresholdLeft !== null && a.threshold !== null && a.thresholdLeft <= a.threshold * 0.2; return `<span class="${low ? 'low' : ''}">${mval(a, a.thresholdLeft)}</span>`; } },
-  { key: 'spendCap', label: 'Limit', num: true, sort: 'spendCap', sumKey: 'spendCap',
+  { key: 'spendCap', label: 'Limit', num: true, sort: 'spendCap', sumKey: 'spendCap', w: 115,
     cell: a => a.spendCap === null ? '<span class="muted">No limit</span>' : mval(a, a.spendCap) },
-  { key: 'spent', label: 'Tổng tiêu', num: true, sort: 'spent', dyn: true, sumSpent: true,
+  { key: 'spent', label: 'Tổng tiêu', num: true, sort: 'spent', dyn: true, sumSpent: true, w: 120,
     cell: a => { const sp = spent(a); return sp === undefined ? '<span class="muted">…</span>' : (sp === null ? '<span class="muted">lỗi</span>' : mval(a, sp)); } },
-  { key: 'accountType', label: 'Loại tài khoản', sort: 'accountType', cell: a => esc(a.accountType || '') },
-  { key: 'payment', label: 'Thẻ thanh toán', sort: 'payment', cell: a => esc(a.payment || '') },
-  { key: 'nextBill', label: 'Ngày lập hóa đơn', sort: 'nextBill', cell: a => a.nextBill ? shortDate(a.nextBill) : '' },
-  { key: 'hiddenAdmins', label: 'Quản trị viên ẩn', num: true, sort: 'hiddenAdmins', cell: a => a.hiddenAdmins == null ? '' : a.hiddenAdmins },
-  { key: 'timezone', label: 'Múi giờ', sort: 'timezone', cell: a => esc(a.timezone || '') },
-  { key: 'disableReason', label: 'Lý do VHH', sort: 'disableReason', cell: a => esc(a.disableReason || '') },
-  { key: 'createdTime', label: 'Ngày tạo', sort: 'createdTime', cell: a => shortDate(a.createdTime) },
-  { key: 'note', label: 'Ghi chú', sort: 'note', cell: a => `<input class="note-input" data-id="${esc(a.id)}" value="${esc(NOTES[a.id] || '')}" placeholder="…">` },
-  { key: 'currency', label: 'Tiền tệ', sort: 'currency', cell: a => esc(curOf(a)) },
-  { key: 'role', label: 'Quyền', sort: 'role', cell: a => esc(a.role) }
+  { key: 'accountType', label: 'Loại tài khoản', sort: 'accountType', w: 115, cell: a => esc(a.accountType || '') },
+  { key: 'payment', label: 'Thẻ thanh toán', sort: 'payment', w: 140, cell: a => esc(a.payment || '') },
+  { key: 'nextBill', label: 'Ngày lập hóa đơn', sort: 'nextBill', w: 130, cell: a => a.nextBill ? shortDate(a.nextBill) : '' },
+  { key: 'hiddenAdmins', label: 'Quản trị viên ẩn', num: true, sort: 'hiddenAdmins', w: 120, cell: a => a.hiddenAdmins == null ? '' : a.hiddenAdmins },
+  { key: 'timezone', label: 'Múi giờ', sort: 'timezone', w: 140, cell: a => esc(a.timezone || '') },
+  { key: 'disableReason', label: 'Lý do VHH', sort: 'disableReason', w: 170, cell: a => esc(a.disableReason || '') },
+  { key: 'createdTime', label: 'Ngày tạo', sort: 'createdTime', w: 105, cell: a => shortDate(a.createdTime) },
+  { key: 'note', label: 'Ghi chú', sort: 'note', w: 160, cell: a => `<input class="note-input" data-id="${esc(a.id)}" value="${esc(NOTES[a.id] || '')}" placeholder="…">` },
+  { key: 'currency', label: 'Tiền tệ', sort: 'currency', w: 90, cell: a => esc(curOf(a)) },
+  { key: 'role', label: 'Quyền', sort: 'role', w: 115, cell: a => esc(a.role) }
 ];
 // Ẩn mặc định vài cột ít dùng để bảng gọn khi mở lần đầu
 const DEFAULT_HIDDEN = ['nextBill', 'hiddenAdmins', 'timezone'];
@@ -69,11 +72,13 @@ const DEFAULT_HIDDEN = ['nextBill', 'hiddenAdmins', 'timezone'];
 init();
 
 async function init() {
-  const stored = await chrome.storage.local.get(['lastData', 'notes', 'alertsEnabled', 'hiddenCols']);
+  const stored = await chrome.storage.local.get(['lastData', 'notes', 'alertsEnabled', 'hiddenCols', 'colWidths']);
   NOTES = stored.notes || {};
   $('alerts').checked = !!stored.alertsEnabled;
   HIDDEN = new Set(stored.hiddenCols || DEFAULT_HIDDEN);
+  WIDTHS = stored.colWidths || {};
   buildColPanel();
+  setupResize();
   if (stored.lastData) { DATA = stored.lastData; render(); }
   load(false);
 
@@ -115,6 +120,35 @@ async function init() {
     if (PSORT.key === key) PSORT.dir = -PSORT.dir; else { PSORT.key = key; PSORT.dir = key === 'fans' ? -1 : 1; }
     render();
   }));
+}
+
+// ==== Kéo giãn độ rộng cột ====
+function startResize(e) {
+  e.preventDefault(); e.stopPropagation();
+  const key = e.target.dataset.key;
+  const col = COLUMNS.find(c => c.key === key);
+  RESIZING = { key, startX: e.clientX, startW: WIDTHS[key] || (col && col.w) || 120 };
+  document.body.style.cursor = 'col-resize';
+  document.body.style.userSelect = 'none';
+}
+function setupResize() {
+  document.addEventListener('mousemove', e => {
+    if (!RESIZING) return;
+    const w = Math.max(60, RESIZING.startW + (e.clientX - RESIZING.startX));
+    WIDTHS[RESIZING.key] = w;
+    const colEl = $('colgroup').querySelector(`col[data-key="${RESIZING.key}"]`);
+    if (colEl) colEl.style.width = w + 'px';
+    const cols = visibleColumns();
+    $('tbl').style.width = cols.reduce((s, c) => s + (WIDTHS[c.key] || c.w || 120), 0) + 'px';
+  });
+  document.addEventListener('mouseup', () => {
+    if (!RESIZING) return;
+    RESIZING = null;
+    JUST_RESIZED_AT = Date.now();
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    chrome.storage.local.set({ colWidths: WIDTHS });
+  });
 }
 
 // ==== Menu ⋯ đổi tên tài khoản ====
@@ -273,18 +307,24 @@ function render() {
     ? `Đăng nhập: ${DATA.user.name}` + (SUB === 'bm' && BM ? ` · ${BM.businesses} BM` : ` · ${DATA.accounts.length} TKQC`)
     : (src ? `${currentAccounts().length} TKQC` : 'Chưa tải dữ liệu');
 
-  // tiêu đề
+  // tiêu đề + colgroup (độ rộng cột)
+  const widthOf = c => WIDTHS[c.key] || c.w || 120;
+  $('colgroup').innerHTML = cols.map(c => `<col data-key="${c.key}" style="width:${widthOf(c)}px">`).join('');
+  $('tbl').style.width = cols.reduce((s, c) => s + widthOf(c), 0) + 'px';
   $('head-row').innerHTML = cols.map(c => {
     const label = c.dyn ? (RANGE ? 'Tiêu theo ngày lọc' : 'Tổng tiêu') : c.label;
     const ind = SORT.key === c.sort ? `<span class="sort-ind">${SORT.dir === 1 ? '▲' : '▼'}</span>` : '';
-    return `<th class="sortable ${c.cls || ''} ${c.num ? 'num' : ''}" data-sort="${c.sort}">${esc(label)}${ind}</th>`;
+    const grip = c.noresize ? '' : `<span class="resizer" data-key="${c.key}"></span>`;
+    return `<th class="sortable ${c.cls || ''} ${c.num ? 'num' : ''}" data-sort="${c.sort}" title="${esc(label)}">${esc(label)}${ind}${grip}</th>`;
   }).join('');
   $('head-row').querySelectorAll('th.sortable').forEach(th => th.addEventListener('click', () => {
+    if (RESIZING || Date.now() - JUST_RESIZED_AT < 250) return;
     const key = th.dataset.sort;
     if (SORT.key === key) SORT.dir = -SORT.dir;
     else { SORT.key = key; SORT.dir = ['name', 'statusLabel', 'disableReason', 'payment', 'accountType', 'timezone', 'currency', 'role'].includes(key) ? 1 : -1; }
     render();
   }));
+  $('head-row').querySelectorAll('.resizer').forEach(rz => rz.addEventListener('mousedown', startResize));
 
   // thân bảng
   $('rows').innerHTML = rows.map(a =>
