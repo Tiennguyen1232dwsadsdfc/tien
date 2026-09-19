@@ -316,7 +316,7 @@ function render() {
   $('colgroup').innerHTML = cols.map(c => `<col data-key="${c.key}" style="width:${widthOf(c)}px">`).join('');
   $('tbl').style.width = cols.reduce((s, c) => s + widthOf(c), 0) + 'px';
   $('head-row').innerHTML = cols.map(c => {
-    const label = c.dyn ? (RANGE ? 'Tiêu theo ngày lọc' : 'Tổng tiêu') : c.label;
+    const label = c.label;
     const ind = SORT.key === c.sort ? `<span class="sort-ind">${SORT.dir === 1 ? '▲' : '▼'}</span>` : '';
     const grip = c.noresize ? '' : `<span class="resizer" data-key="${c.key}"></span>`;
     return `<th class="sortable ${c.cls || ''} ${c.num ? 'num' : ''}" data-sort="${c.sort}" title="${esc(label)}">${esc(label)}${ind}${grip}</th>`;
@@ -401,7 +401,7 @@ function exportCsv() {
   }
   const cols = visibleColumns();
   const rows = visibleAccounts();
-  const head = cols.map(c => c.dyn ? (RANGE ? `Tiêu ${RANGE.label}` : 'Tổng tiêu') : c.label).concat('ID');
+  const head = cols.map(c => c.label).concat('ID');
   const body = rows.map(a => cols.map(c => csvCell(c, a)).concat(`="${a.accountId}"`));
   download(head, body, SUB === 'bm' ? 'tkqc-bm' : 'tkqc');
 }
