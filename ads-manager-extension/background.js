@@ -53,6 +53,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     case 'loadSpend':
       loadSpend(msg.since, msg.until).then(d => sendResponse({ ok: true, data: d })).catch(e => sendResponse({ ok: false, error: e.message }));
       return true;
+    case 'renameAccount':
+      renameAccount(msg.id, msg.name).then(d => sendResponse({ ok: true, data: d })).catch(e => sendResponse({ ok: false, error: e.message }));
+      return true;
+    case 'getRates':
+      getRates().then(d => sendResponse({ ok: true, data: d })).catch(e => sendResponse({ ok: false, error: e.message }));
+      return true;
     case 'setAlerts':
       chrome.storage.local.set({ alertsEnabled: !!msg.enabled });
       setupAlarm();
@@ -83,6 +89,40 @@ async function graphGet(path, token) {
   const json = await res.json();
   if (json.error) { const e = new Error(json.error.message || 'Lỗi Graph API'); e.code = json.error.code; throw e; }
   return json;
+}
+
+async function graphPost(path, params, token) {
+  const body = new URLSearchParams(Object.assign({ access_token: token }, params));
+  const res = await fetch(`${GRAPH}/${path}`, { method: 'POST', body });
+  const json = await res.json();
+  if (json.error) { const e = new Error(json.error.message || 'Lỗi Graph API'); e.code = json.error.code; throw e; }
+  return json;
+}
+
+// Đổi tên tài khoản quảng cáo qua Graph API và cập nhật cache.
+async function renameAccount(id, name) {
+  return withToken(async token => {
+    await graphPost(id, { name }, token);
+    const { lastData } = await chrome.storage.local.get('lastData');
+    if (lastData && lastData.accounts) {
+      const a = lastData.accounts.find(x => x.id === id);
+      if (a) { a.name = name; await chrome.storage.local.set({ lastData }); }
+    }
+    return { id, name };
+  });
+}
+
+// Tỉ giá (số đơn vị / 1 USD). Lấy online, cache 12h, có bảng dự phòng.
+const STATIC_RATES = { USD: 1, VND: 25400, EUR: 0.92, GBP: 0.78, THB: 36, SGD: 1.35, JPY: 150, CNY: 7.2, KRW: 1350, AUD: 1.5, MYR: 4.7, PHP: 57, INR: 83 };
+async function getRates() {
+  const { rates, ratesAt } = await chrome.storage.local.get(['rates', 'ratesAt']);
+  if (rates && ratesAt && Date.now() - ratesAt < 12 * 3600 * 1000) return rates;
+  try {
+    const res = await fetch('https://open.er-api.com/v6/latest/USD');
+    const j = await res.json();
+    if (j && j.rates && j.rates.VND) { await chrome.storage.local.set({ rates: j.rates, ratesAt: Date.now() }); return j.rates; }
+  } catch (_) {}
+  return rates || STATIC_RATES;
 }
 
 // Tự lấy token mới nếu hết hạn (code 190) rồi thử lại một lần.

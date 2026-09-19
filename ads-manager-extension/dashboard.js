@@ -6,9 +6,29 @@ let RANGE = null, SPEND = {};
 let SORT = { key: null, dir: 1 };
 let PSORT = { key: null, dir: 1 };
 let HIDDEN = new Set();       // key các cột đang ẩn
+let TARGET = '';              // tiền tệ quy đổi ('' = tiền gốc)
+let RATES = null;            // tỉ giá đơn vị / 1 USD
 
 const fmt = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 });
 const money = v => (v === null || v === undefined) ? '' : fmt.format(v);
+const ZERO_DEC = new Set(['VND', 'JPY', 'KRW', 'TWD', 'CLP', 'HUF', 'IDR', 'PYG']);
+const STATIC_RATES = { USD: 1, VND: 25400, EUR: 0.92, GBP: 0.78, THB: 36, SGD: 1.35, JPY: 150, CNY: 7.2, KRW: 1350, AUD: 1.5 };
+function rateOf(cur) { return (RATES && RATES[cur]) || STATIC_RATES[cur]; }
+function convVal(v, src) {
+  if (v === null || v === undefined) return null;
+  if (!TARGET || TARGET === src) return v;
+  const rs = rateOf(src), rt = rateOf(TARGET);
+  if (!rs || !rt) return v;
+  return v / rs * rt;
+}
+function fmtCur(v, cur) {
+  if (v === null || v === undefined) return '';
+  const d = ZERO_DEC.has(cur) ? 0 : 2;
+  return new Intl.NumberFormat('vi-VN', { minimumFractionDigits: 0, maximumFractionDigits: d }).format(v);
+}
+// Hiển thị một số tiền của tài khoản a, tự quy đổi nếu đang chọn tiền tệ đích.
+const mval = (a, v) => fmtCur(convVal(v, a.currency), TARGET || a.currency);
+const curOf = a => TARGET || a.currency;
 const shortDate = s => s ? new Date(s).toLocaleDateString('vi-VN') : '';
 const adsManagerUrl = accId => `https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=${accId}`;
 const billingUrl = accId => `https://business.facebook.com/latest/billing_hub/accounts/details/?asset_id=${accId}&placement=campaign_manager`;
@@ -21,17 +41,17 @@ const COLUMNS = [
   { key: 'status', label: 'TT', cls: 'col-tt', fixed: true, sort: 'statusLabel',
     cell: a => `<span class="status ${a.statusKind}"><span class="dot"></span>${a.statusLabel}</span>` },
   { key: 'account', label: 'Tài khoản', cls: 'col-acc', fixed: true, sort: 'name',
-    cell: a => `<a class="acc-name lnk" href="${adsManagerUrl(esc(a.accountId))}" target="_blank" rel="noopener" title="Mở Trình quản lý quảng cáo">${esc(a.name)}</a><div class="acc-id">${esc(a.accountId)}</div>${a.business ? `<span class="acc-bm">${esc(a.business)}</span>` : ''}`,
+    cell: a => `<div class="acc-head"><a class="acc-name lnk" href="${adsManagerUrl(esc(a.accountId))}" target="_blank" rel="noopener" title="Mở Trình quản lý quảng cáo">${esc(a.name)}</a><button class="dots" data-id="${esc(a.id)}" title="Tùy chọn">⋯</button></div><div class="acc-id">${esc(a.accountId)}</div>${a.business ? `<span class="acc-bm">${esc(a.business)}</span>` : ''}`,
     foot: rows => `${rows.length} tài khoản quảng cáo` },
   { key: 'balance', label: 'Số dư', num: true, sort: 'balance', sumKey: 'balance',
-    cell: a => a.balance === null ? '' : `<a class="lnk" href="${billingUrl(esc(a.accountId))}" target="_blank" rel="noopener" title="Mở trang thanh toán / hóa đơn của TK">${money(a.balance)}</a>` },
-  { key: 'threshold', label: 'Ngưỡng', num: true, sort: 'threshold', sumKey: 'threshold', cell: a => money(a.threshold) },
+    cell: a => a.balance === null ? '' : `<a class="lnk" href="${billingUrl(esc(a.accountId))}" target="_blank" rel="noopener" title="Mở trang thanh toán / hóa đơn của TK">${mval(a, a.balance)}</a>` },
+  { key: 'threshold', label: 'Ngưỡng', num: true, sort: 'threshold', sumKey: 'threshold', cell: a => mval(a, a.threshold) },
   { key: 'thresholdLeft', label: 'Ngưỡng còn lại', num: true, sort: 'thresholdLeft', sumKey: 'thresholdLeft',
-    cell: a => { const low = a.thresholdLeft !== null && a.threshold !== null && a.thresholdLeft <= a.threshold * 0.2; return `<span class="${low ? 'low' : ''}">${money(a.thresholdLeft)}</span>`; } },
+    cell: a => { const low = a.thresholdLeft !== null && a.threshold !== null && a.thresholdLeft <= a.threshold * 0.2; return `<span class="${low ? 'low' : ''}">${mval(a, a.thresholdLeft)}</span>`; } },
   { key: 'spendCap', label: 'Limit', num: true, sort: 'spendCap', sumKey: 'spendCap',
-    cell: a => a.spendCap === null ? '<span class="muted">No limit</span>' : money(a.spendCap) },
+    cell: a => a.spendCap === null ? '<span class="muted">No limit</span>' : mval(a, a.spendCap) },
   { key: 'spent', label: 'Tổng tiêu', num: true, sort: 'spent', dyn: true, sumSpent: true,
-    cell: a => { const sp = spent(a); return sp === undefined ? '<span class="muted">…</span>' : (sp === null ? '<span class="muted">lỗi</span>' : money(sp)); } },
+    cell: a => { const sp = spent(a); return sp === undefined ? '<span class="muted">…</span>' : (sp === null ? '<span class="muted">lỗi</span>' : mval(a, sp)); } },
   { key: 'accountType', label: 'Loại tài khoản', sort: 'accountType', cell: a => esc(a.accountType || '') },
   { key: 'payment', label: 'Thẻ thanh toán', sort: 'payment', cell: a => esc(a.payment || '') },
   { key: 'nextBill', label: 'Ngày lập hóa đơn', sort: 'nextBill', cell: a => a.nextBill ? shortDate(a.nextBill) : '' },
@@ -40,7 +60,7 @@ const COLUMNS = [
   { key: 'disableReason', label: 'Lý do VHH', sort: 'disableReason', cell: a => esc(a.disableReason || '') },
   { key: 'createdTime', label: 'Ngày tạo', sort: 'createdTime', cell: a => shortDate(a.createdTime) },
   { key: 'note', label: 'Ghi chú', sort: 'note', cell: a => `<input class="note-input" data-id="${esc(a.id)}" value="${esc(NOTES[a.id] || '')}" placeholder="…">` },
-  { key: 'currency', label: 'Tiền tệ', sort: 'currency', cell: a => esc(a.currency) },
+  { key: 'currency', label: 'Tiền tệ', sort: 'currency', cell: a => esc(curOf(a)) },
   { key: 'role', label: 'Quyền', sort: 'role', cell: a => esc(a.role) }
 ];
 // Ẩn mặc định vài cột ít dùng để bảng gọn khi mở lần đầu
@@ -72,6 +92,10 @@ async function init() {
   $('colBtn').addEventListener('click', e => { e.stopPropagation(); $('colPanel').hidden = !$('colPanel').hidden; });
   document.addEventListener('click', e => { if (!$('colPanel').hidden && !$('colPanel').contains(e.target) && e.target !== $('colBtn')) $('colPanel').hidden = true; });
 
+  $('currency').addEventListener('change', () => { TARGET = $('currency').value; render(); });
+  chrome.runtime.sendMessage({ type: 'getRates' }, res => { if (res && res.ok) { RATES = res.data; if (TARGET) render(); } });
+  setupRenameMenu();
+
   document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === t));
     $('panel-fb').hidden = t.dataset.tab !== 'fb';
@@ -91,6 +115,43 @@ async function init() {
     if (PSORT.key === key) PSORT.dir = -PSORT.dir; else { PSORT.key = key; PSORT.dir = key === 'fans' ? -1 : 1; }
     render();
   }));
+}
+
+// ==== Menu ⋯ đổi tên tài khoản ====
+function setupRenameMenu() {
+  const menu = document.createElement('div');
+  menu.className = 'rowmenu'; menu.hidden = true;
+  menu.innerHTML = '<button class="rowmenu-item" data-act="rename">✎ Đổi tên TKQC</button>';
+  document.body.appendChild(menu);
+
+  $('rows').addEventListener('click', e => {
+    const dots = e.target.closest('.dots');
+    if (!dots) return;
+    e.preventDefault(); e.stopPropagation();
+    menu.dataset.id = dots.dataset.id;
+    const r = dots.getBoundingClientRect();
+    menu.hidden = false;
+    menu.style.top = (r.bottom + 4) + 'px';
+    menu.style.left = Math.min(r.left, window.innerWidth - 180) + 'px';
+  });
+  document.addEventListener('click', e => { if (!menu.contains(e.target) && !e.target.closest('.dots')) menu.hidden = true; });
+
+  menu.querySelector('[data-act="rename"]').addEventListener('click', () => {
+    const id = menu.dataset.id;
+    menu.hidden = true;
+    const acc = currentAccounts().find(a => a.id === id);
+    if (!acc) return;
+    const name = prompt('Đổi tên tài khoản quảng cáo:', acc.name);
+    if (name === null) return;
+    const trimmed = name.trim();
+    if (!trimmed || trimmed === acc.name) return;
+    showNotice('Đang đổi tên…');
+    chrome.runtime.sendMessage({ type: 'renameAccount', id, name: trimmed }, res => {
+      if (!res || !res.ok) { showNotice((res && res.error) || 'Đổi tên thất bại', true); return; }
+      acc.name = trimmed;
+      hideNotice(); render();
+    });
+  });
 }
 
 function buildColPanel() {
@@ -233,12 +294,17 @@ function render() {
     NOTES[inp.dataset.id] = inp.value; await chrome.storage.local.set({ notes: NOTES });
   }));
 
-  // tổng cộng
+  // tổng cộng — khi quy đổi thì cộng chung 1 tiền tệ, không thì gộp theo tiền gốc
   const sumFor = key => {
+    if (TARGET) {
+      let s = 0, has = false;
+      rows.forEach(a => { const v = key === 'spent' ? spent(a) : a[key]; const c = convVal(v, a.currency); if (typeof c === 'number') { s += c; has = true; } });
+      return has ? fmtCur(s, TARGET) : '';
+    }
     const byCur = {};
     rows.forEach(a => { const v = key === 'spent' ? spent(a) : a[key]; if (typeof v === 'number') byCur[a.currency] = (byCur[a.currency] || 0) + v; });
     const curs = Object.keys(byCur);
-    return curs.map(c => `${fmt.format(byCur[c])}${curs.length > 1 ? ' ' + c : ''}`).join(' + ');
+    return curs.map(c => `${fmtCur(byCur[c], c)}${curs.length > 1 ? ' ' + c : ''}`).join(' + ');
   };
   $('foot-row').innerHTML = cols.map(c => {
     let html = '';
