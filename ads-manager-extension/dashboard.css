@@ -2,7 +2,7 @@
   --bg: #F5F7F5;
   --surface: #FFFFFF;
   --ink: #1F2A26;
-  --muted: #64736C;
+  --muted: #52615A;
   --accent: #0E8A5F;
   --accent-ink: #0A6A49;
   --accent-soft: #E4F3EC;
@@ -73,13 +73,20 @@ h1 { font-size: 17px; margin: 0; font-weight: 800; letter-spacing: .01em; }
 .notice { background: var(--warn-soft); color: var(--warn); border: 1px solid var(--warn); border-radius: 8px; padding: 10px 14px; margin-bottom: 10px; flex: none; }
 .notice.error { background: var(--danger-soft); color: var(--danger); border-color: var(--danger); }
 
+/* Overlay "Đang tải" giữa màn hình */
+.loading { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: color-mix(in srgb, var(--bg) 78%, transparent); font-weight: 700; font-size: 15px; color: var(--accent-ink); }
+.loading[hidden] { display: none; }
+.spinner { width: 44px; height: 44px; border: 4px solid var(--accent-soft); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
 #panel-fb { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 #panel-gg { flex: 1; min-height: 0; overflow: auto; }
 .tbl-wrap { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: auto; flex: 1; min-height: 0; }
 table { border-collapse: separate; border-spacing: 0; table-layout: fixed; min-width: 100%; }
-thead th { position: sticky; top: 0; z-index: 2; background: var(--surface); box-shadow: 0 1px 0 var(--line); }
-tfoot td { position: sticky; bottom: 0; z-index: 2; background: var(--surface); box-shadow: 0 -2px 0 var(--line); }
-th { text-align: left; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); padding: 8px 10px; position: relative; }
+thead th { position: sticky; top: 0; z-index: 2; background: var(--zebra); border-bottom: 2px solid var(--line); }
+thead .col-tt, thead .col-acc { background: var(--zebra); }
+tfoot td { position: sticky; bottom: 0; z-index: 2; background: var(--surface); border-top: 2px solid var(--line); }
+th { text-align: left; font-size: 11.5px; letter-spacing: .03em; text-transform: uppercase; color: var(--ink); font-weight: 700; padding: 9px 10px; position: relative; }
 th.sortable { cursor: pointer; user-select: none; }
 th.sortable:hover { color: var(--accent-ink); }
 th .sort-ind { display: inline-block; margin-left: 3px; font-size: 9px; color: var(--accent-ink); }

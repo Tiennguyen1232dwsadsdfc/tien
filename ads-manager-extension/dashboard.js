@@ -233,26 +233,33 @@ function buildColPanel() {
 
 function visibleColumns() { return COLUMNS.filter(c => c.fixed || !HIDDEN.has(c.key)); }
 
+function showLoading(on) { $('loading').hidden = !on; }
+
 // ==== Tải dữ liệu ====
 function load(forceToken) {
   const btn = $('reload'); btn.disabled = true; btn.textContent = 'Đang tải…';
+  showLoading(true);
   chrome.runtime.sendMessage({ type: 'loadAccounts', forceToken }, res => {
-    btn.disabled = false; btn.textContent = 'Tải lại dữ liệu';
+    btn.disabled = false; btn.textContent = 'Tải lại dữ liệu'; showLoading(false);
     if (chrome.runtime.lastError) { showNotice(chrome.runtime.lastError.message, true); return; }
     if (!res.ok) { showNotice(res.error, true); return; }
     hideNotice(); DATA = res.data; render(); if (RANGE) loadSpend();
   });
 }
 function loadBM() {
+  showLoading(true);
   showNotice('Đang tải tài khoản trong Business Manager…');
   chrome.runtime.sendMessage({ type: 'loadBM' }, res => {
+    showLoading(false);
     if (!res || !res.ok) { showNotice((res && res.error) || 'Lỗi tải BM', true); return; }
     hideNotice(); BM = res.data; if (SUB === 'bm') render();
   });
 }
 function loadPages() {
+  showLoading(true);
   showNotice('Đang tải danh sách Page…');
   chrome.runtime.sendMessage({ type: 'loadPages' }, res => {
+    showLoading(false);
     if (!res || !res.ok) { showNotice((res && res.error) || 'Lỗi tải Page', true); return; }
     hideNotice(); PAGES = res.data; if (SUB === 'page') render();
   });
