@@ -56,6 +56,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     case 'renameAccount':
       renameAccount(msg.id, msg.name).then(d => sendResponse({ ok: true, data: d })).catch(e => sendResponse({ ok: false, error: e.message }));
       return true;
+    case 'setSpendCap':
+      setSpendCap(msg.id, msg.capMinor).then(d => sendResponse({ ok: true, data: d })).catch(e => sendResponse({ ok: false, error: e.message }));
+      return true;
     case 'getRates':
       getRates().then(d => sendResponse({ ok: true, data: d })).catch(e => sendResponse({ ok: false, error: e.message }));
       return true;
@@ -112,7 +115,24 @@ async function renameAccount(id, name) {
   });
 }
 
-// Tỉ giá (số đơn vị / 1 USD). Lấy online, cache 12h, có bảng dự phòng.
+// Đặt giới hạn chi tiêu (spend_cap) cho tài khoản. capMinor tính theo đơn vị nhỏ
+// nhất của tiền tệ TK (VND: đồng; USD: cent). capMinor = 0 nghĩa là bỏ giới hạn.
+async function setSpendCap(id, capMinor) {
+  return withToken(async token => {
+    await graphPost(id, { spend_cap: String(capMinor) }, token);
+    const { lastData } = await chrome.storage.local.get('lastData');
+    if (lastData && lastData.accounts) {
+      const a = lastData.accounts.find(x => x.id === id);
+      if (a) {
+        const cur = a.currency;
+        const major = capMinor > 0 ? (ZERO_DECIMAL.has(cur) ? capMinor : capMinor / 100) : null;
+        a.spendCap = major;
+        await chrome.storage.local.set({ lastData });
+      }
+    }
+    return { id, capMinor };
+  });
+}
 const STATIC_RATES = { USD: 1, VND: 25400, EUR: 0.92, GBP: 0.78, THB: 36, SGD: 1.35, JPY: 150, CNY: 7.2, KRW: 1350, AUD: 1.5, MYR: 4.7, PHP: 57, INR: 83 };
 async function getRates() {
   const { rates, ratesAt } = await chrome.storage.local.get(['rates', 'ratesAt']);
@@ -165,44 +185,75 @@ async function loadAccounts(forceToken) {
   return data;
 }
 
+function verifyLabel(v) {
+  v = (v || '').toLowerCase();
+  if (v === 'verified' || v === 'business_verified') return 'VERIFIED';
+  if (v === 'rejected' || v === 'failed') return 'REJECTED';
+  return 'NOT VERIFIED';
+}
+
+// Danh sách Business Manager với các cột: verified, ngày tạo, số admin, số TKQC.
 async function loadBM() {
   return withToken(async token => {
-    const fields = await accFields(token);
-    const biz = await graphGet('me/businesses?fields=id,name&limit=100', token);
-    const businesses = biz.data || [];
-    const accounts = [];
-    for (const b of businesses) {
-      for (const edge of ['owned_ad_accounts', 'client_ad_accounts']) {
-        try {
-          const list = await fetchPaged(`${b.id}/${edge}`, token, b.name, fields);
-          list.forEach(a => accounts.push(normalize(a)));
-        } catch (_) { /* BM không có quyền edge này */ }
+    // thử lấy kèm số liệu tổng hợp; nếu thiếu quyền thì lấy bản gọn
+    const rich = 'id,name,verification_status,created_time,owned_ad_accounts.summary(true).limit(1),business_users.summary(true).limit(1)';
+    const base = 'id,name,verification_status,created_time';
+    async function fetchAll(fields) {
+      const out = []; let after = null;
+      for (let page = 0; page < 15; page++) {
+        const j = await graphGet(`me/businesses?fields=${fields}&limit=100${after ? '&after=' + after : ''}`, token);
+        out.push(...(j.data || []));
+        after = j.paging && j.paging.next && j.paging.cursors ? j.paging.cursors.after : null;
+        if (!after) break;
       }
+      return out;
     }
-    const seen = {}, uniq = [];
-    accounts.forEach(a => { if (!seen[a.id]) { seen[a.id] = 1; uniq.push(a); } });
-    return { fetchedAt: Date.now(), businesses: businesses.length, accounts: uniq };
+    let raw;
+    try { raw = await fetchAll(rich); } catch (_) { raw = await fetchAll(base); }
+    const businesses = raw.map(b => ({
+      id: b.id,
+      name: b.name,
+      verified: verifyLabel(b.verification_status),
+      created: b.created_time || null,
+      slAdmin: b.business_users && b.business_users.summary ? b.business_users.summary.total_count : null,
+      slAdaccount: b.owned_ad_accounts && b.owned_ad_accounts.summary ? b.owned_ad_accounts.summary.total_count : null,
+      role: 'ADMIN'
+    }));
+    return { fetchedAt: Date.now(), businesses };
   });
 }
 
 async function loadPages() {
   return withToken(async token => {
-    const out = [];
-    let after = null;
-    for (let page = 0; page < 15; page++) {
-      const q = `me/accounts?fields=id,name,category,fan_count,followers_count,link,verification_status,tasks&limit=100${after ? '&after=' + after : ''}`;
-      const json = await graphGet(q, token);
-      (json.data || []).forEach(p => out.push({
-        id: p.id, name: p.name, category: p.category || '—',
-        fans: p.fan_count ?? p.followers_count ?? null,
-        link: p.link || null,
-        verified: p.verification_status === 'blue_verified' || p.verification_status === 'gray_verified',
-        role: (p.tasks || []).includes('MANAGE') ? 'Quản trị viên' : 'Thành viên'
-      }));
-      after = json.paging && json.paging.next && json.paging.cursors ? json.paging.cursors.after : null;
-      if (!after) break;
+    // trường mở rộng (post, BM sở hữu) có thể cần quyền — thử rich rồi lùi về base
+    const rich = 'id,name,category,fan_count,followers_count,link,verification_status,is_published,tasks,published_posts.summary(true).limit(1),business{id}';
+    const base = 'id,name,category,fan_count,followers_count,link,verification_status,tasks';
+    async function fetchAll(fields) {
+      const out = []; let after = null;
+      for (let page = 0; page < 15; page++) {
+        const j = await graphGet(`me/accounts?fields=${fields}&limit=100${after ? '&after=' + after : ''}`, token);
+        out.push(...(j.data || []));
+        after = j.paging && j.paging.next && j.paging.cursors ? j.paging.cursors.after : null;
+        if (!after) break;
+      }
+      return out;
     }
-    return { fetchedAt: Date.now(), pages: out };
+    let raw;
+    try { raw = await fetchAll(rich); } catch (_) { raw = await fetchAll(base); }
+    const pages = raw.map((p, i) => ({
+      stt: i + 1,
+      id: p.id,
+      name: p.name,
+      category: p.category || '',
+      fans: p.fan_count ?? p.followers_count ?? null,
+      link: p.link || `https://facebook.com/${p.id}`,
+      verified: verifyLabel(p.verification_status),
+      posts: p.published_posts && p.published_posts.summary ? p.published_posts.summary.total_count : null,
+      businessId: p.business && p.business.id ? p.business.id : null,
+      canAdvertise: p.is_published === undefined ? null : !!p.is_published,
+      role: (p.tasks || []).includes('MANAGE') ? 'Quản trị viên' : 'Thành viên'
+    }));
+    return { fetchedAt: Date.now(), pages };
   });
 }
 

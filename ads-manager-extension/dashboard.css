@@ -83,10 +83,10 @@ th { text-align: left; font-size: 11px; letter-spacing: .04em; text-transform: u
 th.sortable { cursor: pointer; user-select: none; }
 th.sortable:hover { color: var(--accent-ink); }
 th .sort-ind { display: inline-block; margin-left: 3px; font-size: 9px; color: var(--accent-ink); }
-td { padding: 6px 10px; border-bottom: 1px solid var(--line-soft); vertical-align: middle; height: 46px; }
+td { padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; height: 46px; }
 /* Cố định chiều cao hàng + cắt nội dung dài trong mọi ô */
-th, td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Dòng xen kẽ (zebra) — áp cho cả ô ghim để không lệch màu */
+th, td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-right: 1px solid var(--line); }
+/* Nền trắng + kẻ lưới ô + dòng xen kẽ màu */
 tbody tr:nth-child(even) td { background: var(--zebra); }
 tbody tr:hover td { background: var(--line-soft); }
 th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; font-family: "Inter", Consolas, monospace; font-size: 13px; }
@@ -118,6 +118,8 @@ a.lnk:hover { color: var(--accent-ink); text-decoration: underline; }
 .rowmenu[hidden] { display: none; }
 .rowmenu-item { display: block; width: 100%; text-align: left; border: 0; background: transparent; color: var(--ink); padding: 8px 10px; border-radius: 6px; font: inherit; cursor: pointer; }
 .rowmenu-item:hover { background: var(--accent-soft); color: var(--accent-ink); }
+.setlim { border: 1px solid var(--line); background: var(--surface); color: var(--accent-ink); border-radius: 6px; padding: 3px 10px; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.setlim:hover { border-color: var(--accent); background: var(--accent-soft); }
 .acc-id { font-size: 12px; color: var(--muted); font-family: "Inter", Consolas, monospace; }
 .acc-bm { font-size: 11px; color: var(--accent-ink); background: var(--accent-soft); border-radius: 4px; padding: 0 5px; display: inline-block; margin-top: 2px; }
 .plink { color: var(--accent-ink); text-decoration: none; }

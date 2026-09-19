@@ -57,6 +57,8 @@ const COLUMNS = [
     cell: a => { const low = a.thresholdLeft !== null && a.threshold !== null && a.thresholdLeft <= a.threshold * 0.2; return `<span class="${low ? 'low' : ''}">${mval(a, a.thresholdLeft)}</span>`; } },
   { key: 'spendCap', label: 'Limit', num: true, sort: 'spendCap', sumKey: 'spendCap', w: 115,
     cell: a => a.spendCap === null ? '<span class="muted">No limit</span>' : mval(a, a.spendCap) },
+  { key: 'setLimit', label: 'Đặt limit', sort: 'spendCap', w: 110,
+    cell: a => `<button class="setlim" data-id="${esc(a.id)}" title="Đặt giới hạn chi tiêu cho tài khoản">Đặt limit</button>` },
   { key: 'spent', label: 'Tổng tiêu', num: true, sort: 'spent', dyn: true, sumSpent: true, w: 120,
     cell: a => { const sp = spent(a); return sp === undefined ? '<span class="muted">…</span>' : (sp === null ? '<span class="muted">lỗi</span>' : mval(a, sp)); } },
   { key: 'accountType', label: 'Loại tài khoản', sort: 'accountType', w: 115, cell: a => esc(a.accountType || '') },
@@ -104,6 +106,7 @@ async function init() {
   $('currency').addEventListener('change', () => { TARGET = $('currency').value; render(); });
   chrome.runtime.sendMessage({ type: 'getRates' }, res => { if (res && res.ok) { RATES = res.data; if (TARGET) render(); } });
   setupRenameMenu();
+  setupSpendCapMenu();
 
   document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === t));
@@ -113,15 +116,13 @@ async function init() {
   document.querySelectorAll('.subtab').forEach(t => t.addEventListener('click', () => {
     document.querySelectorAll('.subtab').forEach(x => x.classList.toggle('active', x === t));
     SUB = t.dataset.sub;
-    $('wrap-acc').hidden = SUB === 'page'; $('foot-note').hidden = SUB === 'page'; $('wrap-page').hidden = SUB !== 'page';
-    $('colBtn').style.display = SUB === 'page' ? 'none' : '';
+    $('wrap-acc').hidden = SUB !== 'ca-nhan';
+    $('wrap-bm').hidden = SUB !== 'bm';
+    $('wrap-page').hidden = SUB !== 'page';
+    $('foot-note').hidden = SUB !== 'ca-nhan';
+    $('colBtn').style.display = SUB === 'ca-nhan' ? '' : 'none';
     if (SUB === 'bm' && !BM) loadBM();
     if (SUB === 'page' && !PAGES) loadPages();
-    render();
-  }));
-  document.querySelectorAll('#tbl-page th.sortable').forEach(th => th.addEventListener('click', () => {
-    const key = th.dataset.pkey;
-    if (PSORT.key === key) PSORT.dir = -PSORT.dir; else { PSORT.key = key; PSORT.dir = key === 'fans' ? -1 : 1; }
     render();
   }));
 }
@@ -152,6 +153,27 @@ function setupResize() {
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
     chrome.storage.local.set({ colWidths: WIDTHS });
+  });
+}
+
+// ==== Đặt giới hạn chi tiêu (spend cap) ====
+function setupSpendCapMenu() {
+  $('rows').addEventListener('click', e => {
+    const btn = e.target.closest('.setlim');
+    if (!btn) return;
+    const acc = currentAccounts().find(a => a.id === btn.dataset.id);
+    if (!acc) return;
+    const cur = acc.currency;
+    const input = prompt(`Đặt giới hạn chi tiêu cho "${acc.name}" (${cur}).\nĐể trống hoặc 0 = bỏ giới hạn:`, acc.spendCap == null ? '' : acc.spendCap);
+    if (input === null) return;
+    const val = Number(String(input).replace(/[^0-9.]/g, '')) || 0;
+    const capMinor = val <= 0 ? 0 : (ZERO_DEC.has(cur) ? Math.round(val) : Math.round(val * 100));
+    showNotice('Đang đặt giới hạn chi tiêu…');
+    chrome.runtime.sendMessage({ type: 'setSpendCap', id: acc.id, capMinor }, res => {
+      if (!res || !res.ok) { showNotice((res && res.error) || 'Đặt giới hạn thất bại', true); return; }
+      acc.spendCap = val <= 0 ? null : val;
+      hideNotice(); render();
+    });
   });
 }
 
@@ -276,7 +298,7 @@ function spent(a) { if (!RANGE) return a.amountSpent; return a.id in SPEND ? SPE
 // ==== Tiện ích hiển thị ====
 function showNotice(msg, isError) { const n = $('notice'); n.textContent = msg; n.classList.toggle('error', !!isError); n.hidden = false; }
 function hideNotice() { $('notice').hidden = true; }
-function currentAccounts() { return SUB === 'bm' ? ((BM && BM.accounts) || []) : ((DATA && DATA.accounts) || []); }
+function currentAccounts() { return (DATA && DATA.accounts) || []; }
 
 function sortValue(a, key) {
   if (key === 'spent') return spent(a);
@@ -303,13 +325,14 @@ function visibleAccounts() {
 }
 
 function render() {
+  if (SUB === 'bm') return renderBM();
   if (SUB === 'page') return renderPages();
   const cols = visibleColumns();
   const rows = visibleAccounts();
-  const src = SUB === 'bm' ? BM : DATA;
+  const src = DATA;
   $('who').textContent = DATA && DATA.user
-    ? `Đăng nhập: ${DATA.user.name}` + (SUB === 'bm' && BM ? ` · ${BM.businesses} BM` : ` · ${DATA.accounts.length} TKQC`)
-    : (src ? `${currentAccounts().length} TKQC` : 'Chưa tải dữ liệu');
+    ? `Đăng nhập: ${DATA.user.name} · ${DATA.accounts.length} TKQC`
+    : (DATA ? `${DATA.accounts.length} TKQC` : 'Chưa tải dữ liệu');
 
   // tiêu đề + colgroup (độ rộng cột)
   const widthOf = c => WIDTHS[c.key] || c.w || 120;
@@ -361,42 +384,87 @@ function render() {
   $('foot-note').textContent = (RANGE ? `Chi tiêu: ${RANGE.label} · ` : '') + (src && src.fetchedAt ? 'Cập nhật: ' + new Date(src.fetchedAt).toLocaleString('vi-VN') : '');
 }
 
-function renderPages() {
-  renderIndicators('#tbl-page', PSORT, 'pkey');
+// ==== Bảng Business Manager & Page (có sắp xếp khi bấm tiêu đề) ====
+let BMSORT = { key: null, dir: 1 };
+const bmSettingsUrl = id => `https://business.facebook.com/settings/info?business_id=${id}`;
+const dash = '<span class="muted">—</span>';
+
+const BM_COLS = [
+  { key: 'status', label: 'Trạng thái', cell: () => dash },
+  { key: 'name', label: 'Tên BM', cell: b => `<a class="acc-name lnk" href="${bmSettingsUrl(esc(b.id))}" target="_blank" rel="noopener" title="Mở Cài đặt cho doanh nghiệp">${esc(b.name)}</a><div class="acc-id">${esc(b.id)}</div>` },
+  { key: 'type', label: 'Loại BM', cell: () => dash },
+  { key: 'role', label: 'Quyền sở hữu', cell: b => esc(b.role) },
+  { key: 'limit', label: 'Limit', cell: () => dash },
+  { key: 'verified', label: 'Verified', cell: b => esc(b.verified) },
+  { key: 'created', label: 'Created', cell: b => shortDate(b.created), val: b => b.created ? Date.parse(b.created) : null },
+  { key: 'slAdmin', label: 'SL Admin', num: true, cell: b => b.slAdmin == null ? '' : b.slAdmin },
+  { key: 'slAdaccount', label: 'SL Adaccount', num: true, cell: b => b.slAdaccount == null ? '' : b.slAdaccount }
+];
+
+const PAGE_COLS = [
+  { key: 'stt', label: 'STT', num: true, cell: p => p.stt },
+  { key: 'name', label: 'Page', cell: p => `<a class="acc-name lnk" href="${esc(p.link)}" target="_blank" rel="noopener" title="Mở Page">${esc(p.name)}</a><div class="acc-id">${esc(p.id)}</div>` },
+  { key: 'verified', label: 'Xác thực', cell: p => esc(p.verified) },
+  { key: 'posts', label: 'SL Post', num: true, cell: p => p.posts == null ? '' : p.posts },
+  { key: 'created', label: 'Ngày tạo Page', cell: p => p.created ? shortDate(p.created) : dash, val: p => p.created ? Date.parse(p.created) : null },
+  { key: 'businessId', label: 'Thuộc BM', cell: p => p.businessId ? esc(p.businessId) : dash },
+  { key: 'currency', label: 'Tiền tệ', cell: p => p.currency ? esc(p.currency) : dash },
+  { key: 'canAdvertise', label: 'Có thể QC', cell: p => p.canAdvertise == null ? dash : (p.canAdvertise ? '<span class="verified">✓</span>' : '✕') },
+  { key: 'banReason', label: 'Lý do ban QC', cell: p => p.banReason ? esc(p.banReason) : dash }
+];
+
+function renderTable(cols, rows, headId, bodyId, footId, sortState, footText) {
+  $(headId).innerHTML = cols.map(c => {
+    const ind = sortState.key === c.key ? `<span class="sort-ind">${sortState.dir === 1 ? '▲' : '▼'}</span>` : '';
+    return `<th class="sortable ${c.num ? 'num' : ''}" data-k="${c.key}">${esc(c.label)}${ind}</th>`;
+  }).join('');
+  $(headId).querySelectorAll('th.sortable').forEach(th => th.addEventListener('click', () => {
+    const k = th.dataset.k;
+    if (sortState.key === k) sortState.dir = -sortState.dir; else { sortState.key = k; sortState.dir = 1; }
+    render();
+  }));
+  let rs = rows.slice();
+  if (sortState.key) {
+    const c = cols.find(x => x.key === sortState.key);
+    rs.sort((a, b) => {
+      const va = c.val ? c.val(a) : a[sortState.key], vb = c.val ? c.val(b) : b[sortState.key];
+      const na = va == null, nb = vb == null;
+      if (na && nb) return 0; if (na) return 1; if (nb) return -1;
+      const cmp = typeof va === 'number' && typeof vb === 'number' ? va - vb : String(va).localeCompare(String(vb), 'vi');
+      return cmp * sortState.dir;
+    });
+  }
+  $(bodyId).innerHTML = rs.map(r => '<tr>' + cols.map(c => `<td class="${c.num ? 'num' : ''}">${c.cell(r)}</td>`).join('') + '</tr>').join('');
+  $(footId).innerHTML = `<td colspan="${cols.length}" class="muted">${footText(rs.length)}</td>`;
+}
+
+function renderBM() {
   const q = $('search').value.trim().toLowerCase();
-  let rows = ((PAGES && PAGES.pages) || []).filter(p => !q || (p.name || '').toLowerCase().includes(q) || (p.category || '').toLowerCase().includes(q));
-  if (PSORT.key) rows = rows.slice().sort((x, y) => {
-    const vx = x[PSORT.key], vy = y[PSORT.key];
-    const nx = vx === null || vx === undefined, ny = vy === null || vy === undefined;
-    if (nx && ny) return 0; if (nx) return 1; if (ny) return -1;
-    const cmp = typeof vx === 'number' && typeof vy === 'number' ? vx - vy : String(vx).localeCompare(String(vy), 'vi');
-    return cmp * PSORT.dir;
-  });
-  $('rows-page').innerHTML = rows.map(p => `<tr>
-    <td class="acc-name">${esc(p.name)}</td>
-    <td>${esc(p.category)}</td>
-    <td class="num">${p.fans === null ? '' : fmt.format(p.fans)}</td>
-    <td>${p.verified ? '<span class="verified">✓ Đã xác minh</span>' : ''}</td>
-    <td>${esc(p.role)}</td>
-    <td>${p.link ? `<a class="plink" href="${esc(p.link)}" target="_blank" rel="noopener">Mở</a>` : ''}</td>
-  </tr>`).join('');
-  $('p-count').textContent = `${rows.length} Page` + (PAGES && PAGES.fetchedAt ? ' · Cập nhật: ' + new Date(PAGES.fetchedAt).toLocaleString('vi-VN') : '');
+  const rows = ((BM && BM.businesses) || []).filter(b => !q || (b.name || '').toLowerCase().includes(q) || String(b.id).includes(q));
+  renderTable(BM_COLS, rows, 'head-bm', 'rows-bm', 'foot-bm', BMSORT,
+    n => `${n} Business Manager` + (BM && BM.fetchedAt ? ' · Cập nhật: ' + new Date(BM.fetchedAt).toLocaleString('vi-VN') : ''));
+  $('who').textContent = BM ? `${(BM.businesses || []).length} Business Manager` : 'Đang tải BM…';
+}
+
+function renderPages() {
+  const q = $('search').value.trim().toLowerCase();
+  const rows = ((PAGES && PAGES.pages) || []).filter(p => !q || (p.name || '').toLowerCase().includes(q) || String(p.id).includes(q));
+  renderTable(PAGE_COLS, rows, 'head-page', 'rows-page', 'foot-page', PSORT,
+    n => `${n} Page` + (PAGES && PAGES.fetchedAt ? ' · Cập nhật: ' + new Date(PAGES.fetchedAt).toLocaleString('vi-VN') : ''));
   $('who').textContent = PAGES ? `${(PAGES.pages || []).length} Page` : 'Đang tải Page…';
 }
 
-function renderIndicators(sel, sort, attr) {
-  document.querySelectorAll(`${sel} th.sortable`).forEach(th => {
-    let ind = th.querySelector('.sort-ind');
-    if (!ind) { ind = document.createElement('span'); ind.className = 'sort-ind'; th.appendChild(ind); }
-    ind.textContent = sort.key === th.dataset[attr] ? (sort.dir === 1 ? '▲' : '▼') : '';
-  });
-}
-
 function exportCsv() {
+  if (SUB === 'bm') {
+    const rows = (BM && BM.businesses) || [];
+    download(['Trạng thái', 'Tên BM', 'ID', 'Loại BM', 'Quyền', 'Limit', 'Verified', 'Created', 'SL Admin', 'SL Adaccount'],
+      rows.map(b => ['', csv(b.name), `="${b.id}"`, '', b.role, '', b.verified, shortDate(b.created), b.slAdmin ?? '', b.slAdaccount ?? '']), 'bm');
+    return;
+  }
   if (SUB === 'page') {
-    const rows = ((PAGES && PAGES.pages) || []);
-    download(['Tên Page', 'Danh mục', 'Người theo dõi', 'Xác minh', 'Quyền', 'Liên kết'],
-      rows.map(p => [csv(p.name), csv(p.category), p.fans ?? '', p.verified ? 'Có' : '', p.role, p.link || '']), 'pages');
+    const rows = (PAGES && PAGES.pages) || [];
+    download(['STT', 'Page', 'ID', 'Xác thực', 'SL Post', 'Ngày tạo', 'Thuộc BM', 'Tiền tệ', 'Có thể QC', 'Lý do ban'],
+      rows.map(p => [p.stt, csv(p.name), `="${p.id}"`, p.verified, p.posts ?? '', p.created ? shortDate(p.created) : '', p.businessId || '', p.currency || '', p.canAdvertise == null ? '' : (p.canAdvertise ? 'Có' : 'Không'), p.banReason || '']), 'pages');
     return;
   }
   const cols = visibleColumns();
@@ -414,6 +482,7 @@ function csvCell(c, a) {
     case 'threshold': return a.threshold ?? '';
     case 'thresholdLeft': return a.thresholdLeft ?? '';
     case 'spendCap': return a.spendCap ?? '';
+    case 'setLimit': return a.spendCap ?? '';
     case 'spent': return spent(a) ?? '';
     case 'accountType': return csv(a.accountType || '');
     case 'payment': return csv(a.payment || '');
