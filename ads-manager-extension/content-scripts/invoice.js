@@ -5,33 +5,54 @@
   if (!/billing_hub/.test(location.pathname) || !/[?&]g7auto=1/.test(location.search)) return;
 
   var OPEN = ['tải xuống', 'download'];
-  var PDF = ['tải báo cáo xuống (pdf)', 'tải báo cáo (pdf)', 'tải tất cả giao dịch xuống (pdf)', 'download report (pdf)', 'download all transactions (pdf)', 'report (pdf)'];
+  // Ưu tiên "báo cáo (PDF)"; nếu không có thì lấy mục PDF bất kỳ.
+  var PDF_PREFER = ['tải báo cáo xuống (pdf)', 'tải báo cáo (pdf)', 'download report (pdf)'];
+  var PDF_ANY = ['(pdf)'];
 
-  function txt(el) { return (el.textContent || '').trim().toLowerCase(); }
-  function find(list) {
-    var nodes = document.querySelectorAll('div[role="button"],button,[role="menuitem"],a[role="button"],a[role="menuitem"],span[role="button"]');
-    for (var i = 0; i < nodes.length; i++) {
-      var t = txt(nodes[i]);
-      if (!t || t.length > 70) continue;
-      for (var j = 0; j < list.length; j++) {
-        if (t === list[j] || t.indexOf(list[j]) !== -1) return nodes[i];
-      }
-    }
+  function norm(el) { return (el.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase(); }
+
+  // Bắn đủ chuỗi sự kiện chuột để React của Facebook nhận đúng.
+  function fireClick(el) {
+    var opts = { bubbles: true, cancelable: true, view: window };
+    try { el.scrollIntoView({ block: 'center' }); } catch (e) {}
+    ['pointerover', 'pointerenter', 'pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(function (type) {
+      var Ev = type.indexOf('pointer') === 0 && window.PointerEvent ? PointerEvent : MouseEvent;
+      try { el.dispatchEvent(new Ev(type, opts)); } catch (e) { try { el.dispatchEvent(new MouseEvent(type.replace('pointer', 'mouse'), opts)); } catch (e2) {} }
+    });
+  }
+
+  // Tìm phần tử bấm được có nhãn khớp (ưu tiên khớp CHÍNH XÁC, rồi mới chứa).
+  function findClickable(exactList, containList) {
+    var sel = 'div[role="menuitem"],[role="menuitem"],[role="menuitemcheckbox"],[role="option"],div[role="button"],button,a[role="button"],a[role="menuitem"]';
+    var nodes = document.querySelectorAll(sel);
+    var i, t, j;
+    for (i = 0; i < nodes.length; i++) { t = norm(nodes[i]); if (!t || t.length > 80) continue; for (j = 0; j < exactList.length; j++) { if (t === exactList[j]) return nodes[i]; } }
+    for (i = 0; i < nodes.length; i++) { t = norm(nodes[i]); if (!t || t.length > 80) continue; for (j = 0; j < exactList.length; j++) { if (t.indexOf(exactList[j]) !== -1) return nodes[i]; } }
+    if (containList) for (i = 0; i < nodes.length; i++) { t = norm(nodes[i]); if (!t || t.length > 80) continue; for (j = 0; j < containList.length; j++) { if (t.indexOf(containList[j]) !== -1) return nodes[i]; } }
     return null;
   }
 
-  var stage = 0, tries = 0;
+  var stage = 0, tries = 0, sinceOpen = 0;
   var timer = setInterval(function () {
     tries++;
-    if (tries > 70) { clearInterval(timer); return; } // ~35s thì bỏ, để người dùng tự bấm
+    if (tries > 90) { clearInterval(timer); return; } // ~45s thì bỏ để người dùng tự bấm
+
     if (stage === 0) {
-      var b = find(OPEN);
-      if (b) { b.click(); stage = 1; tries = 0; }
+      var b = findClickable(OPEN, null);
+      if (b) { fireClick(b); stage = 1; sinceOpen = 0; }
     } else if (stage === 1) {
-      var p = find(PDF);
+      sinceOpen++;
+      var p = findClickable(PDF_PREFER, PDF_ANY);
       if (p) {
-        p.click(); stage = 2; clearInterval(timer);
+        fireClick(p);
+        stage = 2; clearInterval(timer);
         try { chrome.runtime.sendMessage({ type: 'invoiceDone' }); } catch (e) {}
+        return;
+      }
+      // Menu chưa mở hoặc đã đóng -> mở lại nút "Tải xuống" sau mỗi ~2,5s
+      if (sinceOpen % 5 === 0) {
+        var again = findClickable(OPEN, null);
+        if (again) fireClick(again);
       }
     }
   }, 500);
