@@ -41,6 +41,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     case 'capturedToken':
       if (msg.token) chrome.storage.local.set({ fbToken: msg.token, fbTokenAt: Date.now() });
       return;
+    case 'invoiceDone':
+      if (_sender && _sender.tab && _sender.tab.id) {
+        const tid = _sender.tab.id;
+        setTimeout(() => { try { chrome.tabs.remove(tid); } catch (e) {} }, 9000);
+      }
+      return;
     case 'loadAccounts':
       loadAccounts(!!msg.forceToken).then(d => sendResponse({ ok: true, data: d })).catch(e => sendResponse({ ok: false, error: e.message }));
       return true;

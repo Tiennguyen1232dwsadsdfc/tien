@@ -206,11 +206,11 @@ function doDownloadInvoices() {
   const end = Math.floor(Date.parse(to + 'T23:59:59') / 1000);
   const pages = accs.map(a => {
     const biz = a.businessId ? `&business_id=${a.businessId}` : '';
-    return `https://adsmanager.facebook.com/adsmanager/billing_hub/payment_activity?asset_id=${a.accountId}&payment_account_id=${a.accountId}${biz}&placement=BILLING_HUB&date=${start}_${end}`;
+    return `https://adsmanager.facebook.com/adsmanager/billing_hub/payment_activity?asset_id=${a.accountId}&payment_account_id=${a.accountId}${biz}&placement=BILLING_HUB&date=${start}_${end}&g7auto=1`;
   });
   chrome.runtime.sendMessage({ type: 'openInvoicePages', pages }, () => {});
   $('invoiceModal').hidden = true;
-  showNotice(`Đã mở ${accs.length} trang hóa đơn Facebook. Trên mỗi trang bấm "Tải xuống → Tải báo cáo (PDF)"; file sẽ tự lưu vào Downloads/G7-HoaDon theo tên "Tên TK - ID.pdf".`);
+  showNotice(`Đang mở & tự tải hóa đơn ${accs.length} TK. Extension tự bấm "Tải xuống → Tải báo cáo (PDF)" trên mỗi trang; file lưu vào Downloads/G7-HoaDon theo "Tên TK - ID.pdf". Nếu Chrome hỏi cho phép tải/nhiều tab, chọn Cho phép.`);
 }
 
 // ==== Đặt giới hạn chi tiêu (spend cap) ====
