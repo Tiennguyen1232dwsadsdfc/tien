@@ -85,6 +85,7 @@ h1 { font-size: 17px; margin: 0; font-weight: 800; letter-spacing: .01em; }
 table { border-collapse: separate; border-spacing: 0; table-layout: fixed; min-width: 100%; }
 thead th { position: sticky; top: 0; z-index: 2; background: var(--zebra); border-bottom: 2px solid var(--line); }
 thead .col-tt, thead .col-acc { background: var(--zebra); }
+thead .col-check { background: var(--zebra); }
 tfoot td { position: sticky; bottom: 0; z-index: 2; background: var(--surface); border-top: 2px solid var(--line); }
 th { text-align: left; font-size: 11.5px; letter-spacing: .03em; text-transform: uppercase; color: var(--ink); font-weight: 700; padding: 9px 10px; position: relative; }
 th.sortable { cursor: pointer; user-select: none; }
@@ -99,12 +100,14 @@ tbody tr:hover td { background: var(--line-soft); }
 th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; font-family: "Inter", Consolas, monospace; font-size: 13px; }
 span.low { color: var(--danger); font-weight: 600; }
 
-/* Ghim cột TT + Tài khoản khi cuộn ngang (TT rộng cố định 120) */
-.col-tt, .col-acc { position: sticky; z-index: 3; background: var(--surface); }
-.col-tt { left: 0; }
-.col-acc { left: 130px; box-shadow: 6px 0 8px -6px rgba(0,0,0,.15); }
-tbody tr:hover .col-tt, tbody tr:hover .col-acc { background: var(--line-soft); }
-thead .col-tt, thead .col-acc, tfoot .col-tt, tfoot .col-acc { z-index: 5; }
+/* Ghim cột Tích chọn + TT + Tài khoản khi cuộn ngang */
+.col-check, .col-tt, .col-acc { position: sticky; z-index: 3; background: var(--surface); }
+.col-check { left: 0; text-align: center; }
+.col-tt { left: 40px; }
+.col-acc { left: 170px; box-shadow: 6px 0 8px -6px rgba(0,0,0,.15); }
+tbody tr:hover .col-check, tbody tr:hover .col-tt, tbody tr:hover .col-acc { background: var(--line-soft); }
+thead .col-check, thead .col-tt, thead .col-acc, tfoot .col-check, tfoot .col-tt, tfoot .col-acc { z-index: 5; }
+.rowchk, #chkAll { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; }
 
 /* Tay kéo giãn độ rộng cột */
 .resizer { position: absolute; right: 0; top: 0; width: 8px; height: 100%; cursor: col-resize; z-index: 6; }
@@ -133,6 +136,23 @@ a.lnk:hover { color: var(--accent-ink); text-decoration: underline; }
 .lim-bar.warn i { background: var(--warn); }
 .lim-bar.danger i { background: var(--danger); }
 .lim-bar.none { opacity: .5; }
+
+/* Modal hóa đơn */
+.modal { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; padding: 24px; }
+.modal[hidden] { display: none; }
+.modal-card { background: var(--surface); color: var(--ink); border-radius: 12px; width: 720px; max-width: 100%; max-height: 92vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+.modal-head { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+.modal-head h2 { font-size: 16px; margin: 0; flex: 1; }
+.modal-head .rng { display: flex; align-items: center; gap: 6px; font-size: 13px; flex-wrap: wrap; }
+.modal-head input[type="date"] { padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); font: inherit; }
+.modal-body { overflow: auto; padding: 16px 18px; }
+.modal-foot { display: flex; gap: 8px; justify-content: flex-end; padding: 12px 18px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.icon-x { border: 0; background: transparent; font-size: 20px; cursor: pointer; color: var(--muted); line-height: 1; }
+.inv-list { list-style: none; margin: 8px 0 0; padding: 0; max-height: 320px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+.inv-list li { display: flex; justify-content: space-between; gap: 10px; padding: 7px 12px; border-bottom: 1px solid var(--line-soft); font-size: 13.5px; }
+.inv-list li:last-child { border-bottom: none; }
+.inv-list .fn { color: var(--muted); font-family: "Inter", Consolas, monospace; font-size: 12px; }
+.inv-note { font-size: 12.5px; color: var(--muted); margin-top: 10px; }
 .acc-id { font-size: 12px; color: var(--muted); font-family: "Inter", Consolas, monospace; }
 .acc-bm { font-size: 11px; color: var(--accent-ink); background: var(--accent-soft); border-radius: 4px; padding: 0 5px; display: inline-block; margin-top: 2px; }
 .plink { color: var(--accent-ink); text-decoration: none; }

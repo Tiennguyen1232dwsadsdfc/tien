@@ -59,6 +59,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     case 'setSpendCap':
       setSpendCap(msg.id, msg.capMinor).then(d => sendResponse({ ok: true, data: d })).catch(e => sendResponse({ ok: false, error: e.message }));
       return true;
+    case 'downloadInvoices':
+      downloadInvoices(msg.items, msg.start, msg.end, msg.report).then(d => sendResponse({ ok: true, data: d })).catch(e => sendResponse({ ok: false, error: e.message }));
+      return true;
     case 'getRates':
       getRates().then(d => sendResponse({ ok: true, data: d })).catch(e => sendResponse({ ok: false, error: e.message }));
       return true;
@@ -133,6 +136,32 @@ async function setSpendCap(id, capMinor) {
     return { id, capMinor };
   });
 }
+
+// Tải hóa đơn/báo cáo PDF chính chủ của Facebook cho từng TK, lưu vào thư mục
+// theo tên "Tên TK - ID.pdf". Dùng phiên đăng nhập FB hiện tại của trình duyệt.
+function sanitizeName(s) {
+  return String(s || '').replace(/[\\/:*?"<>|\n\r\t]/g, '-').replace(/\s+/g, ' ').trim().slice(0, 120) || 'TKQC';
+}
+async function downloadInvoices(items, start, end, report) {
+  let ok = 0, fail = 0;
+  for (const it of items) {
+    const url = `https://adsmanager.facebook.com/ads/manage/invoices_generator/?act=${it.accountId}`
+      + `&time_start=${start}&ts=${start}&time_end=${end}&format=pdf&report=${report ? 'true' : 'false'}`;
+    const filename = `G7-HoaDon/${sanitizeName(it.name)} - ${it.accountId}.pdf`;
+    try {
+      await new Promise((res, rej) => {
+        chrome.downloads.download({ url, filename, conflictAction: 'uniquify' }, id => {
+          if (chrome.runtime.lastError || id === undefined) rej(new Error(chrome.runtime.lastError ? chrome.runtime.lastError.message : 'download failed'));
+          else res(id);
+        });
+      });
+      ok++;
+    } catch (_) { fail++; }
+    await new Promise(r => setTimeout(r, 400)); // giãn cách để FB không chặn
+  }
+  return { total: items.length, ok, fail };
+}
+
 const STATIC_RATES = { USD: 1, VND: 25400, EUR: 0.92, GBP: 0.78, THB: 36, SGD: 1.35, JPY: 150, CNY: 7.2, KRW: 1350, AUD: 1.5, MYR: 4.7, PHP: 57, INR: 83 };
 async function getRates() {
   const { rates, ratesAt } = await chrome.storage.local.get(['rates', 'ratesAt']);

@@ -11,6 +11,7 @@ let RESIZING = null;         // trạng thái đang kéo giãn cột
 let JUST_RESIZED_AT = 0;     // mốc thời gian vừa kéo xong (bỏ qua click sắp xếp)
 let TARGET = '';              // tiền tệ quy đổi ('' = tiền gốc)
 let RATES = null;            // tỉ giá đơn vị / 1 USD
+let SELECTED = new Set();     // id các TK đang tích chọn (để tải hóa đơn)
 
 const fmt = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 });
 const money = v => (v === null || v === undefined) ? '' : fmt.format(v);
@@ -42,6 +43,8 @@ const csv = s => `"${String(s).replace(/"/g, '""')}"`;
 // ==== Định nghĩa cột (bảng tài khoản) ====
 // fixed: luôn hiện, không cho ẩn. num: canh phải. sumKey: cột có cộng tổng.
 const COLUMNS = [
+  { key: 'check', label: '', cls: 'col-check', fixed: true, noresize: true, nosort: true, w: 40,
+    cell: a => `<input type="checkbox" class="rowchk" data-id="${esc(a.id)}" ${SELECTED.has(a.id) ? 'checked' : ''}>` },
   { key: 'status', label: 'TT', cls: 'col-tt', fixed: true, sort: 'statusLabel', w: 130, noresize: true,
     cell: a => `<span class="status ${a.statusKind}"><span class="dot"></span>${a.statusLabel}</span>` },
   { key: 'account', label: 'Tài khoản', cls: 'col-acc', fixed: true, sort: 'name', w: 260,
@@ -121,6 +124,13 @@ async function init() {
   setupRenameMenu();
   setupSpendCapMenu();
 
+  $('invoiceBtn').addEventListener('click', openInvoice);
+  $('invClose').addEventListener('click', () => $('invoiceModal').hidden = true);
+  $('invClose2').addEventListener('click', () => $('invoiceModal').hidden = true);
+  $('invDownload').addEventListener('click', doDownloadInvoices);
+  $('invFrom').addEventListener('change', renderInvoiceList);
+  $('invTo').addEventListener('change', renderInvoiceList);
+
   document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === t));
     $('panel-fb').hidden = t.dataset.tab !== 'fb';
@@ -166,6 +176,41 @@ function setupResize() {
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
     chrome.storage.local.set({ colWidths: WIDTHS });
+  });
+}
+
+// ==== Tích chọn + tải hóa đơn Facebook ====
+function syncChkAll() { const chk = $('chkAll'); if (!chk) return; const rows = visibleAccounts(); chk.checked = rows.length > 0 && rows.every(a => SELECTED.has(a.id)); }
+function updateInvoiceBtn() { const b = $('invoiceBtn'); if (!b) return; const n = SELECTED.size; b.textContent = `Tải hóa đơn (${n})`; b.disabled = n === 0; }
+function selectedAccounts() { return currentAccounts().filter(a => SELECTED.has(a.id)); }
+function renderInvoiceList() {
+  const accs = selectedAccounts();
+  $('invCount').textContent = accs.length;
+  $('invList').innerHTML = accs.map(a => `<li><span>${esc(a.name)}</span><span class="fn">${esc(a.accountId)}.pdf</span></li>`).join('');
+}
+function openInvoice() {
+  if (!selectedAccounts().length) return;
+  const t = new Date();
+  $('invFrom').value = ymd(new Date(t.getFullYear(), t.getMonth(), 1));
+  $('invTo').value = ymd(t);
+  renderInvoiceList();
+  $('invoiceModal').hidden = false;
+}
+function doDownloadInvoices() {
+  const accs = selectedAccounts();
+  if (!accs.length) return;
+  const from = $('invFrom').value, to = $('invTo').value;
+  if (!from || !to || from > to) { showNotice('Chọn khoảng ngày hợp lệ.'); return; }
+  const start = Math.floor(Date.parse(from + 'T00:00:00') / 1000);
+  const end = Math.floor(Date.parse(to + 'T23:59:59') / 1000);
+  const items = accs.map(a => ({ accountId: a.accountId, name: a.name }));
+  const btn = $('invDownload'); btn.disabled = true; btn.textContent = 'Đang tải…';
+  chrome.runtime.sendMessage({ type: 'downloadInvoices', items, start, end, report: true }, res => {
+    btn.disabled = false; btn.textContent = 'Tải hóa đơn PDF';
+    if (!res || !res.ok) { showNotice((res && res.error) || 'Tải hóa đơn thất bại', true); return; }
+    $('invoiceModal').hidden = true;
+    showNotice(`Đã tải ${res.data.ok}/${res.data.total} hóa đơn vào Downloads/G7-HoaDon` + (res.data.fail ? ` (${res.data.fail} lỗi)` : '') + '.');
+    setTimeout(hideNotice, 6000);
   });
 }
 
@@ -359,6 +404,7 @@ function render() {
   $('colgroup').innerHTML = cols.map(c => `<col data-key="${c.key}" style="width:${widthOf(c)}px">`).join('');
   $('tbl').style.width = cols.reduce((s, c) => s + widthOf(c), 0) + 'px';
   $('head-row').innerHTML = cols.map(c => {
+    if (c.key === 'check') return `<th class="col-check"><input type="checkbox" id="chkAll"></th>`;
     const label = c.label;
     const ind = SORT.key === c.sort ? `<span class="sort-ind">${SORT.dir === 1 ? '▲' : '▼'}</span>` : '';
     const grip = c.noresize ? '' : `<span class="resizer" data-key="${c.key}"></span>`;
@@ -380,6 +426,19 @@ function render() {
   $('rows').querySelectorAll('.note-input').forEach(inp => inp.addEventListener('change', async () => {
     NOTES[inp.dataset.id] = inp.value; await chrome.storage.local.set({ notes: NOTES });
   }));
+  $('rows').querySelectorAll('.rowchk').forEach(cb => cb.addEventListener('change', () => {
+    if (cb.checked) SELECTED.add(cb.dataset.id); else SELECTED.delete(cb.dataset.id);
+    syncChkAll(); updateInvoiceBtn();
+  }));
+  const chkAll = $('chkAll');
+  if (chkAll) {
+    syncChkAll();
+    chkAll.addEventListener('change', () => {
+      visibleAccounts().forEach(a => { if (chkAll.checked) SELECTED.add(a.id); else SELECTED.delete(a.id); });
+      render(); updateInvoiceBtn();
+    });
+  }
+  updateInvoiceBtn();
 
   // tổng cộng — khi quy đổi thì cộng chung 1 tiền tệ, không thì gộp theo tiền gốc
   const sumFor = key => {

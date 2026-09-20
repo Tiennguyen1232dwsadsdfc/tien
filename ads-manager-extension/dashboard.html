@@ -66,6 +66,7 @@
       </div>
       <button id="reload" class="btn primary">Tải lại dữ liệu</button>
       <button id="exportCsv" class="btn">Xuất CSV</button>
+      <button id="invoiceBtn" class="btn" disabled>Tải hóa đơn (0)</button>
     </div>
   </header>
 
@@ -120,6 +121,26 @@
     </div>
   </section>
 </div>
+
+<div id="invoiceModal" class="modal" hidden>
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2>Tải hóa đơn Facebook theo ngày</h2>
+      <span class="rng">Từ <input type="date" id="invFrom"> đến <input type="date" id="invTo"></span>
+      <button class="icon-x" id="invClose" title="Đóng">✕</button>
+    </div>
+    <div class="modal-body">
+      <div>Sẽ tải <b><span id="invCount">0</span> hóa đơn PDF</b> (báo cáo chính chủ Facebook) cho các tài khoản đã chọn, lưu vào thư mục <b>Downloads/G7-HoaDon</b> theo tên <b>Tên TK - ID.pdf</b>:</div>
+      <ul class="inv-list" id="invList"></ul>
+      <div class="inv-note">Cần đang đăng nhập facebook.com. Trình duyệt sẽ tải lần lượt; nếu Chrome hỏi cho phép tải nhiều tệp, chọn "Cho phép".</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" id="invClose2">Đóng</button>
+      <button class="btn primary" id="invDownload">Tải hóa đơn PDF</button>
+    </div>
+  </div>
+</div>
+
 <script src="dashboard.js"></script>
 </body>
 </html>
