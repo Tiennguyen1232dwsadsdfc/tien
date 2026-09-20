@@ -145,8 +145,9 @@ function sanitizeName(s) {
 async function downloadInvoices(items, start, end, report) {
   let ok = 0, fail = 0;
   for (const it of items) {
+    const upl = `upl_${Date.now()}_${(crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2))}`;
     const url = `https://adsmanager.facebook.com/ads/manage/invoices_generator/?act=${it.accountId}`
-      + `&time_start=${start}&ts=${start}&time_end=${end}&format=pdf&report=${report ? 'true' : 'false'}`;
+      + `&time_end=${end}&ts=${start}&upl_session_id=${upl}&format=pdf&report=${report ? 'true' : 'false'}`;
     const filename = `G7-HoaDon/${sanitizeName(it.name)} - ${it.accountId}.pdf`;
     try {
       await new Promise((res, rej) => {
@@ -157,7 +158,7 @@ async function downloadInvoices(items, start, end, report) {
       });
       ok++;
     } catch (_) { fail++; }
-    await new Promise(r => setTimeout(r, 400)); // giãn cách để FB không chặn
+    await new Promise(r => setTimeout(r, 500)); // giãn cách để FB không chặn
   }
   return { total: items.length, ok, fail };
 }
