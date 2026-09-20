@@ -197,38 +197,20 @@ function openInvoice() {
   $('invoiceModal').hidden = false;
 }
 function sanitizeName(s) { return String(s || '').replace(/[\\/:*?"<>|\n\r\t]/g, '-').replace(/\s+/g, ' ').trim().slice(0, 120) || 'TKQC'; }
-async function doDownloadInvoices() {
+function doDownloadInvoices() {
   const accs = selectedAccounts();
   if (!accs.length) return;
   const from = $('invFrom').value, to = $('invTo').value;
   if (!from || !to || from > to) { showNotice('Chọn khoảng ngày hợp lệ.'); return; }
   const start = Math.floor(Date.parse(from + 'T00:00:00') / 1000);
   const end = Math.floor(Date.parse(to + 'T23:59:59') / 1000);
-  const btn = $('invDownload'); btn.disabled = true;
-  let ok = 0, fail = 0;
-  for (let i = 0; i < accs.length; i++) {
-    const a = accs[i];
-    btn.textContent = `Đang tải ${i + 1}/${accs.length}…`;
-    const upl = `upl_${Date.now()}_${(crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2))}`;
-    const url = `https://adsmanager.facebook.com/ads/manage/invoices_generator/?act=${a.accountId}&time_end=${end}&ts=${start}&upl_session_id=${upl}&format=pdf&report=true`;
-    try {
-      const resp = await fetch(url, { credentials: 'include' });
-      const blob = await resp.blob();
-      const ct = (resp.headers.get('content-type') || '').toLowerCase();
-      if (!resp.ok || (!ct.includes('pdf') && !(blob.type || '').includes('pdf'))) { fail++; continue; }
-      const burl = URL.createObjectURL(blob);
-      await new Promise((res, rej) => chrome.downloads.download({ url: burl, filename: `G7-HoaDon/${sanitizeName(a.name)} - ${a.accountId}.pdf`, conflictAction: 'uniquify' }, id => {
-        setTimeout(() => URL.revokeObjectURL(burl), 15000);
-        if (chrome.runtime.lastError || id === undefined) rej(new Error((chrome.runtime.lastError && chrome.runtime.lastError.message) || 'x')); else res();
-      }));
-      ok++;
-    } catch (_) { fail++; }
-    await new Promise(r => setTimeout(r, 400));
-  }
-  btn.disabled = false; btn.textContent = 'Tải hóa đơn PDF';
+  const pages = accs.map(a => {
+    const biz = a.businessId ? `&business_id=${a.businessId}` : '';
+    return `https://adsmanager.facebook.com/adsmanager/billing_hub/payment_activity?asset_id=${a.accountId}&payment_account_id=${a.accountId}${biz}&placement=BILLING_HUB&date=${start}_${end}`;
+  });
+  chrome.runtime.sendMessage({ type: 'openInvoicePages', pages }, () => {});
   $('invoiceModal').hidden = true;
-  if (ok > 0) showNotice(`Đã tải ${ok}/${accs.length} hóa đơn PDF vào Downloads/G7-HoaDon.` + (fail ? ` ${fail} TK Facebook không tạo được hóa đơn cho kỳ này.` : ''));
-  else showNotice(`Facebook không trả về PDF cho ${accs.length} TK đã chọn (endpoint hóa đơn cần tạo từ trang Facebook). Báo mình để chuyển sang xuất hóa đơn G7 tự tạo.`, true);
+  showNotice(`Đã mở ${accs.length} trang hóa đơn Facebook. Trên mỗi trang bấm "Tải xuống → Tải báo cáo (PDF)"; file sẽ tự lưu vào Downloads/G7-HoaDon theo tên "Tên TK - ID.pdf".`);
 }
 
 // ==== Đặt giới hạn chi tiêu (spend cap) ====

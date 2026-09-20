@@ -62,6 +62,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     case 'downloadInvoices':
       downloadInvoices(msg.items, msg.start, msg.end, msg.report).then(d => sendResponse({ ok: true, data: d })).catch(e => sendResponse({ ok: false, error: e.message }));
       return true;
+    case 'openInvoicePages':
+      openInvoicePages(msg.pages).then(d => sendResponse({ ok: true, data: d })).catch(e => sendResponse({ ok: false, error: e.message }));
+      return true;
     case 'getRates':
       getRates().then(d => sendResponse({ ok: true, data: d })).catch(e => sendResponse({ ok: false, error: e.message }));
       return true;
@@ -163,6 +166,38 @@ async function downloadInvoices(items, start, end, report) {
   return { total: items.length, ok, fail };
 }
 
+// Mở lần lượt các trang hóa đơn (billing hub) của từng TK để người dùng bấm Tải xuống.
+async function openInvoicePages(pages) {
+  for (let i = 0; i < pages.length; i++) {
+    chrome.tabs.create({ url: pages[i], active: i === 0 });
+    await new Promise(r => setTimeout(r, 250));
+  }
+  return { opened: pages.length };
+}
+
+// Lưu bản đồ ID tài khoản -> tên, để đặt tên file hóa đơn khi tải từ Facebook.
+async function updateAcctNames(accounts) {
+  const { acctNames } = await chrome.storage.local.get('acctNames');
+  const map = acctNames || {};
+  accounts.forEach(a => { if (a.accountId) map[a.accountId] = a.name; });
+  await chrome.storage.local.set({ acctNames: map });
+}
+
+// Tự đổi tên & xếp file hóa đơn PDF tải từ Facebook vào Downloads/G7-HoaDon
+// theo "Tên TK - ID.pdf" (đọc act=<ID> trong URL tải).
+chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
+  const url = item.finalUrl || item.url || '';
+  if (!/facebook\.com/.test(url) || !/invoices_generator|invoice|\bact=\d+/.test(url)) return;
+  const m = /[?&]act=(\d+)/.exec(url);
+  if (!m) return;
+  const act = m[1];
+  chrome.storage.local.get('acctNames', data => {
+    const name = (data.acctNames || {})[act] || 'TKQC';
+    suggest({ filename: `G7-HoaDon/${sanitizeName(name)} - ${act}.pdf`, conflictAction: 'uniquify' });
+  });
+  return true;
+});
+
 const STATIC_RATES = { USD: 1, VND: 25400, EUR: 0.92, GBP: 0.78, THB: 36, SGD: 1.35, JPY: 150, CNY: 7.2, KRW: 1350, AUD: 1.5, MYR: 4.7, PHP: 57, INR: 83 };
 async function getRates() {
   const { rates, ratesAt } = await chrome.storage.local.get(['rates', 'ratesAt']);
@@ -212,6 +247,7 @@ async function loadAccounts(forceToken) {
     return { fetchedAt: Date.now(), user: me, accounts: raw.map(normalize) };
   }, forceToken);
   await chrome.storage.local.set({ lastData: data });
+  await updateAcctNames(data.accounts);
   return data;
 }
 
