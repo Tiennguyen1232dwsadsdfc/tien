@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "G7 Ads Check – Quản lý TKQC",
-  "version": "1.12.1",
+  "version": "1.12.2",
   "description": "Quản lý tài khoản quảng cáo Facebook (cá nhân, BM, Page): trạng thái, số dư, ngưỡng, limit, chi tiêu theo ngày, cảnh báo tự động.",
   "minimum_chrome_version": "111",
   "permissions": ["storage", "alarms", "notifications", "downloads", "tabs"],
