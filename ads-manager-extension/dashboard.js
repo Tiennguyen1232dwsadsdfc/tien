@@ -210,7 +210,7 @@ function doDownloadInvoices() {
   });
   chrome.runtime.sendMessage({ type: 'openInvoicePages', pages }, () => {});
   $('invoiceModal').hidden = true;
-  showNotice(`Đang mở & tự tải hóa đơn ${accs.length} TK. Extension tự bấm "Tải xuống → Tải báo cáo (PDF)" trên mỗi trang; file lưu vào Downloads/G7-HoaDon theo "Tên TK - ID.pdf". Nếu Chrome hỏi cho phép tải/nhiều tab, chọn Cho phép.`);
+  showNotice(`Đang tự tải hóa đơn ${accs.length} TK ở chế độ nền (không chuyển tab). Extension mở nền từng TK, tự bấm "Tải báo cáo (PDF)", lưu vào Downloads/G7-HoaDon theo "Tên TK - ID.pdf" rồi tự đóng. Nếu Chrome hỏi cho phép tải nhiều tệp, chọn Cho phép.`);
 }
 
 // ==== Đặt giới hạn chi tiêu (spend cap) ====

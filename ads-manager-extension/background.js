@@ -42,10 +42,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       if (msg.token) chrome.storage.local.set({ fbToken: msg.token, fbTokenAt: Date.now() });
       return;
     case 'invoiceDone':
-      if (_sender && _sender.tab && _sender.tab.id) {
-        const tid = _sender.tab.id;
-        setTimeout(() => { try { chrome.tabs.remove(tid); } catch (e) {} }, 9000);
-      }
+      if (_sender && _sender.tab && PENDING[_sender.tab.id]) PENDING[_sender.tab.id]();
       return;
     case 'loadAccounts':
       loadAccounts(!!msg.forceToken).then(d => sendResponse({ ok: true, data: d })).catch(e => sendResponse({ ok: false, error: e.message }));
@@ -172,11 +169,26 @@ async function downloadInvoices(items, start, end, report) {
   return { total: items.length, ok, fail };
 }
 
-// Mở lần lượt các trang hóa đơn (billing hub) của từng TK để người dùng bấm Tải xuống.
+// Mở nền lần lượt từng trang hóa đơn, tự bấm tải, rồi tự đóng (không chuyển tab).
+var PENDING = {};
+function downloadOneTab(url) {
+  return new Promise(function (resolve) {
+    chrome.tabs.create({ url: url, active: false }, function (tab) {
+      if (!tab) { resolve(); return; }
+      var tid = tab.id, done = false;
+      var finish = function () {
+        if (done) return; done = true; delete PENDING[tid];
+        setTimeout(function () { try { chrome.tabs.remove(tid); } catch (e) {} resolve(); }, 4000);
+      };
+      PENDING[tid] = finish;        // content script bấm tải xong -> chờ 4s rồi đóng tab
+      setTimeout(finish, 25000);    // timeout nếu không tự bấm được
+    });
+  });
+}
 async function openInvoicePages(pages) {
-  for (let i = 0; i < pages.length; i++) {
-    chrome.tabs.create({ url: pages[i], active: i === 0 });
-    await new Promise(r => setTimeout(r, 250));
+  for (var i = 0; i < pages.length; i++) {
+    await downloadOneTab(pages[i]);
+    await new Promise(function (r) { setTimeout(r, 300); });
   }
   return { opened: pages.length };
 }
