@@ -4,31 +4,18 @@
 (function () {
   if (!/billing_hub/.test(location.pathname) || !/[?&]g7auto=1/.test(location.search)) return;
 
-  var OPEN_EXCL = ['tất cả', 'báo cáo', 'csv', '(pdf)', 'giao dịch'];
+  var OPEN_EXCL = ['tất cả', 'báo cáo', 'csv', '(pdf)', '(csv)', 'giao dịch'];
   var REPORT = ['tải báo cáo xuống (pdf)', 'tải báo cáo (pdf)', 'download report (pdf)', 'download summary (pdf)'];
   var REPORT_EXCL = ['csv', 'tất cả giao dịch', 'all transactions', 'each transaction', 'mỗi giao dịch'];
 
   function norm(el) { return (el.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase(); }
-
   function visible(el) {
     if (!el || !el.getClientRects || !el.getClientRects().length) return false;
     var r = el.getBoundingClientRect();
     if (r.width < 2 || r.height < 2) return false;
-    var s;
-    try { s = getComputedStyle(el); } catch (e) { return true; }
+    var s; try { s = getComputedStyle(el); } catch (e) { return true; }
     return !(s.visibility === 'hidden' || s.display === 'none' || s.opacity === '0');
   }
-
-  function clickable(el) {
-    var n = el;
-    for (var d = 0; d < 6 && n; d++) {
-      var role = n.getAttribute && n.getAttribute('role');
-      if (n.tagName === 'BUTTON' || n.tagName === 'A' || role === 'button' || role === 'menuitem' || role === 'menuitemradio' || role === 'option') return n;
-      n = n.parentElement;
-    }
-    return el;
-  }
-
   function fireClick(el) {
     var opts = { bubbles: true, cancelable: true, view: window };
     try { el.scrollIntoView({ block: 'center' }); } catch (e) {}
@@ -38,9 +25,9 @@
     });
   }
 
-  // Tìm đúng nút "Tải xuống" đang hiển thị (ưu tiên nhãn khớp chính xác).
+  // Nút "Tải xuống": phần tử có aria-haspopup="menu" và nhãn "Tải xuống".
   function findOpen() {
-    var nodes = document.querySelectorAll('div[role="button"],button,a[role="button"],[role="button"]');
+    var nodes = document.querySelectorAll('[aria-haspopup="menu"]');
     var contains = null;
     for (var i = 0; i < nodes.length; i++) {
       var el = nodes[i];
@@ -53,8 +40,9 @@
     }
     return contains;
   }
+  function menuOpen(trigger) { return trigger && trigger.getAttribute && trigger.getAttribute('aria-expanded') === 'true'; }
 
-  // Tìm mục "Tải báo cáo xuống (PDF)" đang hiển thị (phần tử nhỏ nhất khớp).
+  // Mục "Tải báo cáo xuống (PDF)": phần tử NHỎ NHẤT đang hiển thị có nhãn đúng.
   function findReport() {
     var all = document.querySelectorAll('div,span,a,button,[role]');
     var best = null, bestLen = 1e9;
@@ -66,17 +54,17 @@
       if (REPORT_EXCL.some(function (x) { return t.indexOf(x) !== -1; })) continue;
       if (REPORT.some(function (p) { return t.indexOf(p) !== -1; }) && t.length < bestLen) { best = el; bestLen = t.length; }
     }
-    return best ? clickable(best) : null;
+    return best;
   }
 
-  var stage = 0, tries = 0, sinceOpen = 0;
+  var trigger = null, stage = 0, tries = 0, sinceOpen = 0;
   var timer = setInterval(function () {
     tries++;
-    if (tries > 90) { clearInterval(timer); return; } // ~45s
+    if (tries > 100) { clearInterval(timer); return; } // ~50s
 
     if (stage === 0) {
-      var b = findOpen();
-      if (b) { fireClick(b); stage = 1; sinceOpen = 0; }
+      trigger = findOpen();
+      if (trigger) { fireClick(trigger); stage = 1; sinceOpen = 0; }
     } else if (stage === 1) {
       sinceOpen++;
       var p = findReport();
@@ -86,9 +74,10 @@
         try { chrome.runtime.sendMessage({ type: 'invoiceDone' }); } catch (e) {}
         return;
       }
-      if (sinceOpen % 4 === 0) { // menu chưa mở/đóng lại -> mở lại
-        var again = findOpen();
-        if (again) fireClick(again);
+      // Menu chưa mở -> bấm lại nút Tải xuống (mỗi ~1,5s)
+      if (!menuOpen(trigger) && sinceOpen % 3 === 0) {
+        var t2 = findOpen() || trigger;
+        if (t2) { trigger = t2; fireClick(t2); }
       }
     }
   }, 500);
