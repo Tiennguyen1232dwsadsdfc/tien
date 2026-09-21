@@ -78,8 +78,12 @@
       sinceOpen++;
       var p = findReport();
       if (p) {
-        try { p.click(); } catch (e) {}   // click chuẩn của <a> để tải
-        fireClick(p);                       // dự phòng cho trường hợp là <div>
+        // <a> thì click() một lần (tránh tải trùng); nếu là <div> thì giả lập sự kiện.
+        if (p.tagName === 'A' || (p.getAttribute && p.getAttribute('href'))) {
+          try { p.click(); } catch (e) { fireClick(p); }
+        } else {
+          fireClick(p);
+        }
         stage = 2; clearInterval(timer);
         try { chrome.runtime.sendMessage({ type: 'invoiceDone' }); } catch (e) {}
         return;
