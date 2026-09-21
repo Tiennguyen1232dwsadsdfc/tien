@@ -202,15 +202,15 @@ function doDownloadInvoices() {
   if (!accs.length) return;
   const from = $('invFrom').value, to = $('invTo').value;
   if (!from || !to || from > to) { showNotice('Chọn khoảng ngày hợp lệ.'); return; }
-  const start = Math.floor(Date.parse(from + 'T00:00:00') / 1000);
-  const end = Math.floor(Date.parse(to + 'T23:59:59') / 1000);
+  const start = Math.floor(Date.parse(from + 'T12:00:00Z') / 1000);
+  const end = Math.floor(Date.parse(to + 'T12:00:00Z') / 1000);
   const pages = accs.map(a => {
     const biz = a.businessId ? `&business_id=${a.businessId}` : '';
     return `https://adsmanager.facebook.com/adsmanager/billing_hub/payment_activity?asset_id=${a.accountId}&payment_account_id=${a.accountId}${biz}&placement=BILLING_HUB&date=${start}_${end}&g7auto=1`;
   });
   chrome.runtime.sendMessage({ type: 'openInvoicePages', pages }, () => {});
   $('invoiceModal').hidden = true;
-  showNotice(`Đang tự tải hóa đơn ${accs.length} TK ở chế độ nền (không chuyển tab). Extension mở nền từng TK, tự bấm "Tải báo cáo (PDF)", lưu vào Downloads/G7-HoaDon theo "Tên TK - ID.pdf" rồi tự đóng. Nếu Chrome hỏi cho phép tải nhiều tệp, chọn Cho phép.`);
+  showNotice(`Đang tự tải hóa đơn ${accs.length} TK chạy ngầm (cửa sổ ẩn, không chiếm màn hình). Lưu vào Downloads/G7-HoaDon theo "Tên TK - ID.pdf". Nếu Chrome hỏi cho phép tải nhiều tệp, chọn Cho phép.`);
 }
 
 // ==== Đặt giới hạn chi tiêu (spend cap) ====

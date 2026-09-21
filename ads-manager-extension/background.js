@@ -169,18 +169,19 @@ async function downloadInvoices(items, start, end, report) {
   return { total: items.length, ok, fail };
 }
 
-// Mở nền lần lượt từng trang hóa đơn, tự bấm tải, rồi tự đóng (không chuyển tab).
+// Mở NGẦM lần lượt từng trang hóa đơn trong cửa sổ thu nhỏ (không focus, ẩn khỏi
+// màn hình), tự bấm tải, rồi tự đóng — không xen vào tab của người dùng.
 var PENDING = {};
 function downloadOneTab(url) {
   return new Promise(function (resolve) {
-    chrome.tabs.create({ url: url, active: false }, function (tab) {
-      if (!tab) { resolve(); return; }
-      var tid = tab.id, done = false;
+    chrome.windows.create({ url: url, focused: false, state: 'minimized', type: 'popup', width: 480, height: 360 }, function (win) {
+      if (!win || !win.tabs || !win.tabs[0]) { resolve(); return; }
+      var wid = win.id, tid = win.tabs[0].id, done = false;
       var finish = function () {
         if (done) return; done = true; delete PENDING[tid];
-        setTimeout(function () { try { chrome.tabs.remove(tid); } catch (e) {} resolve(); }, 4000);
+        setTimeout(function () { try { chrome.windows.remove(wid); } catch (e) {} resolve(); }, 4000);
       };
-      PENDING[tid] = finish;        // content script bấm tải xong -> chờ 4s rồi đóng tab
+      PENDING[tid] = finish;        // content script bấm tải xong -> chờ 4s rồi đóng cửa sổ
       setTimeout(finish, 25000);    // timeout nếu không tự bấm được
     });
   });
