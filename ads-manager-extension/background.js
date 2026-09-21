@@ -174,7 +174,10 @@ async function downloadInvoices(items, start, end, report) {
 var PENDING = {};
 function downloadOneTab(url) {
   return new Promise(function (resolve) {
-    chrome.windows.create({ url: url, focused: false, state: 'minimized', type: 'popup', width: 480, height: 360 }, function (win) {
+    // KHÔNG minimize: cửa sổ minimized bị Chrome ngừng render nên Facebook không
+    // dựng menu "Tải xuống" -> không tạo được link PDF. Dùng cửa sổ nhỏ, KHÔNG focus
+    // (không cướp màn hình / không đổi tab), đặt lệch ra góc; tải xong tự đóng.
+    chrome.windows.create({ url: url, focused: false, type: 'popup', width: 360, height: 300, top: 0, left: 0 }, function (win) {
       if (!win || !win.tabs || !win.tabs[0]) { resolve(); return; }
       var wid = win.id, tid = win.tabs[0].id, done = false;
       var finish = function () {
@@ -182,7 +185,7 @@ function downloadOneTab(url) {
         setTimeout(function () { try { chrome.windows.remove(wid); } catch (e) {} resolve(); }, 4000);
       };
       PENDING[tid] = finish;        // content script bấm tải xong -> chờ 4s rồi đóng cửa sổ
-      setTimeout(finish, 25000);    // timeout nếu không tự bấm được
+      setTimeout(finish, 45000);    // timeout nếu không tự bấm được (đủ thời gian FB tải + render)
     });
   });
 }

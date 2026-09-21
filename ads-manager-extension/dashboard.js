@@ -210,7 +210,7 @@ function doDownloadInvoices() {
   });
   chrome.runtime.sendMessage({ type: 'openInvoicePages', pages }, () => {});
   $('invoiceModal').hidden = true;
-  showNotice(`Đang tự tải hóa đơn ${accs.length} TK chạy ngầm (cửa sổ ẩn, không chiếm màn hình). Lưu vào Downloads/G7-HoaDon theo "Tên TK - ID.pdf". Nếu Chrome hỏi cho phép tải nhiều tệp, chọn Cho phép.`);
+  showNotice(`Đang tự tải hóa đơn ${accs.length} TK ở cửa sổ nền nhỏ (không chiếm màn hình, không đổi tab), tải xong tự đóng. Lưu vào Downloads/G7-HoaDon theo "Tên TK - ID.pdf". Nếu Chrome hỏi cho phép tải nhiều tệp, chọn Cho phép.`);
 }
 
 // ==== Đặt giới hạn chi tiêu (spend cap) ====
