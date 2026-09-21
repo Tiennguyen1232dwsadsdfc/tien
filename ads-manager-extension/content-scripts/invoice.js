@@ -42,17 +42,26 @@
   }
   function menuOpen(trigger) { return trigger && trigger.getAttribute && trigger.getAttribute('aria-expanded') === 'true'; }
 
-  // Mục "Tải báo cáo xuống (PDF)": phần tử NHỎ NHẤT đang hiển thị có nhãn đúng.
+  // Mục "Tải báo cáo xuống (PDF)": ưu tiên thẻ <a href*=invoices_generator> có nhãn đúng.
   function findReport() {
+    var links = document.querySelectorAll('a[href*="invoices_generator"],a[href*="invoice"]');
+    for (var i = 0; i < links.length; i++) {
+      var el = links[i];
+      var t = norm(el);
+      if (!t) continue;
+      if (REPORT_EXCL.some(function (x) { return t.indexOf(x) !== -1; })) continue;
+      if (REPORT.some(function (p) { return t.indexOf(p) !== -1; })) return el;
+    }
+    // Dự phòng: phần tử nhỏ nhất đang hiển thị có nhãn đúng.
     var all = document.querySelectorAll('div,span,a,button,[role]');
     var best = null, bestLen = 1e9;
-    for (var i = 0; i < all.length; i++) {
-      var el = all[i];
-      if (!visible(el)) continue;
-      var t = norm(el);
-      if (!t || t.length > 200) continue;
-      if (REPORT_EXCL.some(function (x) { return t.indexOf(x) !== -1; })) continue;
-      if (REPORT.some(function (p) { return t.indexOf(p) !== -1; }) && t.length < bestLen) { best = el; bestLen = t.length; }
+    for (var k = 0; k < all.length; k++) {
+      var e2 = all[k];
+      if (!visible(e2)) continue;
+      var t2 = norm(e2);
+      if (!t2 || t2.length > 200) continue;
+      if (REPORT_EXCL.some(function (x) { return t2.indexOf(x) !== -1; })) continue;
+      if (REPORT.some(function (p) { return t2.indexOf(p) !== -1; }) && t2.length < bestLen) { best = e2; bestLen = t2.length; }
     }
     return best;
   }
@@ -69,12 +78,12 @@
       sinceOpen++;
       var p = findReport();
       if (p) {
-        fireClick(p);
+        try { p.click(); } catch (e) {}   // click chuẩn của <a> để tải
+        fireClick(p);                       // dự phòng cho trường hợp là <div>
         stage = 2; clearInterval(timer);
         try { chrome.runtime.sendMessage({ type: 'invoiceDone' }); } catch (e) {}
         return;
       }
-      // Menu chưa mở -> bấm lại nút Tải xuống (mỗi ~1,5s)
       if (!menuOpen(trigger) && sinceOpen % 3 === 0) {
         var t2 = findOpen() || trigger;
         if (t2) { trigger = t2; fireClick(t2); }
