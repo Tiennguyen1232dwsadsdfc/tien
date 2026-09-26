@@ -1,0 +1,14 @@
+# Kich ban mau — moi dong la mot cau thoai. Dung "||" de ghi chu y tuong anh.
+@title: Chuyện Chiếc Đèn Lồng Cuối Phố
+@style: tranh kỹ thuật số điện ảnh, ánh đèn lồng vàng ấm, tông nâu trầm, Việt Nam thập niên 1990
+@voice:
+
+== Cảnh 1: Con phố cũ ==
+Cuối con phố Hàng Mã có một tiệm đèn lồng nhỏ, cửa gỗ đã bạc màu. || tiệm đèn lồng nhỏ cuối phố cổ, cửa gỗ bạc màu, đèn vàng hắt ra mặt đường ướt
+Ông Bảy ngồi đó bốn mươi năm, tay chưa từng rời khung tre.
+Người trong phố bảo đèn của ông sáng hơn đèn ngoài chợ, mà ông chỉ cười.
+
+== Cảnh 2: Cô bé và chiếc đèn méo ==
+Một tối mưa, có cô bé chạy vào, tay giữ chiếc đèn lồng đã móp một bên.
+Cô bé nói mai là Trung thu, mà đèn của em thì hỏng rồi. || cô bé áo mưa ướt đứng trong tiệm, tay cầm đèn lồng móp, ánh đèn vàng
+Ông Bảy không nói gì, chỉ kéo chiếc ghế nhỏ lại gần đèn bàn và bắt đầu tháo từng nan tre.

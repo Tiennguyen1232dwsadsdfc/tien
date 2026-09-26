@@ -68,3 +68,11 @@ Trong tab còn có 2 công cụ **tra cứu nhanh**:
   file ghi âm ngay trong app. API này là GET kèm body JSON nên bắt buộc đi qua `/api/proxy`.
 
 > Lưu ý: đây là bản demo — mật khẩu lưu dạng thường trong localStorage, không dùng cho dữ liệu thật.
+
+---
+
+## Tool khác trong repo
+
+- [`tools/autostory/`](tools/autostory/) — bộ tool auto làm video kể truyện: kịch bản → giọng đọc
+  (ElevenLabs / Minimax) → ảnh minh hoạ (Whisk / Gemini) → draft CapCut dựng sẵn, khớp từng lời
+  thoại, có hiệu ứng zoom & pan. Xem hướng dẫn trong `tools/autostory/README.md`.

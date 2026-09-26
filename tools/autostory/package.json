@@ -1,0 +1,19 @@
+{
+  "name": "autostory",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Bo tool auto lam video ke truyen: text-to-speech (ElevenLabs/Minimax) -> sinh anh minh hoa -> xuat draft CapCut khop timeline loi thoai",
+  "bin": { "autostory": "bin/autostory.js" },
+  "scripts": {
+    "test": "node --test test/",
+    "autostory": "node bin/autostory.js"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.68.0"
+  },
+  "optionalDependencies": {
+    "playwright": "^1.49.0"
+  }
+}
