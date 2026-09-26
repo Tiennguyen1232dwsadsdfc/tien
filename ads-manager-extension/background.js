@@ -189,11 +189,21 @@ function downloadOneTab(url) {
     });
   });
 }
+// Tải NHIỀU TK cùng lúc: chạy tối đa INVOICE_PARALLEL cửa sổ nền song song, xong
+// cái nào thì lấy TK kế tiếp. Giới hạn để Facebook không chặn vì mở quá nhiều.
+var INVOICE_PARALLEL = 4;
 async function openInvoicePages(pages) {
-  for (var i = 0; i < pages.length; i++) {
-    await downloadOneTab(pages[i]);
-    await new Promise(function (r) { setTimeout(r, 300); });
+  var next = 0;
+  async function worker() {
+    while (next < pages.length) {
+      var url = pages[next++];
+      await downloadOneTab(url);
+      await new Promise(function (r) { setTimeout(r, 300); });
+    }
   }
+  var workers = [];
+  for (var w = 0; w < Math.min(INVOICE_PARALLEL, pages.length); w++) workers.push(worker());
+  await Promise.all(workers);
   return { opened: pages.length };
 }
 

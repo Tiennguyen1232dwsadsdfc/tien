@@ -143,8 +143,16 @@ a.lnk:hover { color: var(--accent-ink); text-decoration: underline; }
 .modal-card { background: var(--surface); color: var(--ink); border-radius: 12px; width: 720px; max-width: 100%; max-height: 92vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,.35); }
 .modal-head { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
 .modal-head h2 { font-size: 16px; margin: 0; flex: 1; }
-.modal-head .rng { display: flex; align-items: center; gap: 6px; font-size: 13px; flex-wrap: wrap; }
-.modal-head input[type="date"] { padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); font: inherit; }
+/* Chọn ngày hóa đơn: nút chọn nhanh + ô ngày. color-scheme ép icon lịch luôn nhìn thấy
+   (không bị chìm khi máy để giao diện tối). */
+.inv-dates { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; margin-bottom: 14px; background: var(--accent-soft, #eef7f1); border: 1px solid var(--line); border-radius: 10px; }
+.inv-presets { display: flex; gap: 6px; flex-wrap: wrap; }
+.btn.chip { padding: 5px 11px; font-size: 12.5px; font-weight: 600; border-radius: 999px; }
+.btn.chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.inv-range { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 13.5px; font-weight: 600; }
+.inv-range label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.inv-range input[type="date"] { padding: 7px 10px; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: #111; font: inherit; font-size: 14px; color-scheme: light; cursor: pointer; min-width: 150px; }
+.inv-range input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; opacity: .85; }
 .modal-body { overflow: auto; padding: 16px 18px; }
 .modal-foot { display: flex; gap: 8px; justify-content: flex-end; padding: 12px 18px; border-top: 1px solid var(--line); flex-wrap: wrap; }
 .icon-x { border: 0; background: transparent; font-size: 20px; cursor: pointer; color: var(--muted); line-height: 1; }

@@ -126,11 +126,23 @@
   <div class="modal-card">
     <div class="modal-head">
       <h2>Tải hóa đơn Facebook theo ngày</h2>
-      <span class="rng">Từ <input type="date" id="invFrom"> đến <input type="date" id="invTo"></span>
       <button class="icon-x" id="invClose" title="Đóng">✕</button>
     </div>
     <div class="modal-body">
-      <div>Extension sẽ <b>tự tải ở chế độ nền</b> hóa đơn <b><span id="invCount">0</span> TK</b> (báo cáo PDF chính chủ Facebook, đúng khoảng ngày), lưu vào <b>Downloads/G7-HoaDon</b> theo tên <b>Tên TK - ID.pdf</b>. Không chuyển tab; mỗi TK mở nền, tải xong tự đóng:</div>
+      <div class="inv-dates">
+        <div class="inv-presets" id="invPresets">
+          <button type="button" class="btn chip" data-p="thismonth">Tháng này</button>
+          <button type="button" class="btn chip" data-p="lastmonth">Tháng trước</button>
+          <button type="button" class="btn chip" data-p="7d">7 ngày</button>
+          <button type="button" class="btn chip" data-p="30d">30 ngày</button>
+          <button type="button" class="btn chip" data-p="today">Hôm nay</button>
+        </div>
+        <div class="inv-range">
+          <label>Từ <input type="date" id="invFrom"></label>
+          <label>đến <input type="date" id="invTo"></label>
+        </div>
+      </div>
+      <div>Extension sẽ <b>tự tải ở chế độ nền</b> hóa đơn <b><span id="invCount">0</span> TK</b> (báo cáo PDF chính chủ Facebook, đúng khoảng ngày), lưu vào <b>Downloads/G7-HoaDon</b> theo tên <b>Tên TK - ID.pdf</b>. Tải <b>nhiều TK cùng lúc</b> ở cửa sổ nền, không chuyển tab, tải xong tự đóng:</div>
       <ul class="inv-list" id="invList"></ul>
       <div class="inv-note">Cần đang đăng nhập facebook.com. Facebook chỉ tạo link tải trong trang của họ nên mỗi TK phải nạp nền một chút; extension làm lần lượt, không làm bạn nhảy tab. Nếu Chrome hỏi cho phép tải nhiều tệp, chọn "Cho phép".</div>
     </div>

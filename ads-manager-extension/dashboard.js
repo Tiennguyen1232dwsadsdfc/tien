@@ -128,8 +128,9 @@ async function init() {
   $('invClose').addEventListener('click', () => $('invoiceModal').hidden = true);
   $('invClose2').addEventListener('click', () => $('invoiceModal').hidden = true);
   $('invDownload').addEventListener('click', doDownloadInvoices);
-  $('invFrom').addEventListener('change', renderInvoiceList);
-  $('invTo').addEventListener('change', renderInvoiceList);
+  $('invFrom').addEventListener('change', () => { markInvPreset(null); renderInvoiceList(); });
+  $('invTo').addEventListener('change', () => { markInvPreset(null); renderInvoiceList(); });
+  $('invPresets').addEventListener('click', e => { const b = e.target.closest('[data-p]'); if (b) invPreset(b.dataset.p); });
 
   document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === t));
@@ -188,12 +189,25 @@ function renderInvoiceList() {
   $('invCount').textContent = accs.length;
   $('invList').innerHTML = accs.map(a => `<li><span>${esc(a.name)}</span><span class="fn">${esc(a.accountId)}.pdf</span></li>`).join('');
 }
+// Nút chọn nhanh khoảng ngày cho hóa đơn (không phụ thuộc vào icon lịch của trình duyệt).
+function markInvPreset(p) {
+  $('invPresets').querySelectorAll('[data-p]').forEach(b => b.classList.toggle('active', b.dataset.p === p));
+}
+function invPreset(p) {
+  const t = new Date();
+  let from = t, to = t;
+  if (p === '7d') { from = new Date(t); from.setDate(t.getDate() - 6); }
+  else if (p === '30d') { from = new Date(t); from.setDate(t.getDate() - 29); }
+  else if (p === 'thismonth') { from = new Date(t.getFullYear(), t.getMonth(), 1); }
+  else if (p === 'lastmonth') { from = new Date(t.getFullYear(), t.getMonth() - 1, 1); to = new Date(t.getFullYear(), t.getMonth(), 0); }
+  $('invFrom').value = ymd(from);
+  $('invTo').value = ymd(to);
+  markInvPreset(p);
+  renderInvoiceList();
+}
 function openInvoice() {
   if (!selectedAccounts().length) return;
-  const t = new Date();
-  $('invFrom').value = ymd(new Date(t.getFullYear(), t.getMonth(), 1));
-  $('invTo').value = ymd(t);
-  renderInvoiceList();
+  invPreset('thismonth');
   $('invoiceModal').hidden = false;
 }
 function sanitizeName(s) { return String(s || '').replace(/[\\/:*?"<>|\n\r\t]/g, '-').replace(/\s+/g, ' ').trim().slice(0, 120) || 'TKQC'; }
@@ -210,7 +224,7 @@ function doDownloadInvoices() {
   });
   chrome.runtime.sendMessage({ type: 'openInvoicePages', pages }, () => {});
   $('invoiceModal').hidden = true;
-  showNotice(`Đang tự tải hóa đơn ${accs.length} TK ở cửa sổ nền nhỏ (không chiếm màn hình, không đổi tab), tải xong tự đóng. Lưu vào Downloads/G7-HoaDon theo "Tên TK - ID.pdf". Nếu Chrome hỏi cho phép tải nhiều tệp, chọn Cho phép.`);
+  showNotice(`Đang tự tải hóa đơn ${accs.length} TK (tối đa 4 TK cùng lúc) ở cửa sổ nền nhỏ, không đổi tab, tải xong tự đóng. Lưu vào Downloads/G7-HoaDon theo "Tên TK - ID.pdf". Nếu Chrome hỏi cho phép tải nhiều tệp, chọn Cho phép.`);
 }
 
 // ==== Đặt giới hạn chi tiêu (spend cap) ====
