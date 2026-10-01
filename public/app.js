@@ -1,5 +1,5 @@
 /* ============================================================
-   Quản Lý Chi Phí Marketing — app.js
+   Chi Phí MKT RootBio (Quản Lý Chi Phí Marketing) — app.js
    Demo chạy hoàn toàn trên trình duyệt, dữ liệu lưu localStorage.
    ============================================================ */
 'use strict';

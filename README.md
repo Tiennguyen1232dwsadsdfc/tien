@@ -1,6 +1,6 @@
-# 📊 Quản Lý Chi Phí Marketing
+# 📊 Chi Phí MKT RootBio
 
-Demo web app quản lý chi phí marketing cho team: **báo cáo ngày · ứng tiền · KPI · dashboard**.
+Web app quản lý chi phí marketing cho team RootBio: **báo cáo ngày · ứng tiền · KPI · dashboard**.
 Toàn bộ dữ liệu lưu trong `localStorage` của trình duyệt (bản demo, không cần database).
 
 ## Tính năng

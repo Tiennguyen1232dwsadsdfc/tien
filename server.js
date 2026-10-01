@@ -1,4 +1,4 @@
-/* Static server cho app Quản Lý Chi Phí Marketing — không cần dependency.
+/* Static server cho app Chi Phí MKT RootBio (Quản Lý Chi Phí Marketing) — không cần dependency.
    Kèm endpoint /api/proxy chuyển tiếp request tới API Sandbox (tránh CORS).
    Chạy: node server.js  (Render: Start Command = node server.js) */
 'use strict';
@@ -91,4 +91,4 @@ http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': MIME[path.extname(filePath)] || 'application/octet-stream' });
     res.end(data);
   });
-}).listen(PORT, () => console.log(`Chi Phí MKT chạy tại http://localhost:${PORT}`));
+}).listen(PORT, () => console.log(`Chi Phí MKT RootBio chạy tại http://localhost:${PORT}`));

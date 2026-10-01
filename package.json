@@ -1,7 +1,7 @@
 {
-  "name": "chi-phi-marketing",
+  "name": "chi-phi-mkt-rootbio",
   "version": "1.0.0",
-  "description": "Demo quản lý chi phí marketing: báo cáo ngày, ứng tiền, KPI, dashboard",
+  "description": "Chi Phí MKT RootBio — quản lý chi phí marketing: báo cáo ngày, ứng tiền, KPI, dashboard",
   "private": true,
   "scripts": {
     "start": "node server.js"
