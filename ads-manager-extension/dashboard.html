@@ -140,6 +140,13 @@
         <div class="inv-range">
           <label>Từ <input type="date" id="invFrom"></label>
           <label>đến <input type="date" id="invTo"></label>
+          <label title="Tải nhanh quá Facebook có thể báo spam / bắt xác minh. Chậm = tải từng TK, nghỉ 6–10 giây giữa các TK.">Tốc độ
+            <select id="invSpeed">
+              <option value="slow">Chậm – an toàn (từng TK, nghỉ 6–10s)</option>
+              <option value="medium">Vừa (2 TK cùng lúc, nghỉ 4–6s)</option>
+              <option value="fast">Nhanh (4 TK cùng lúc) – dễ bị báo spam</option>
+            </select>
+          </label>
         </div>
       </div>
       <div>Extension sẽ <b>tự tải ở chế độ nền</b> hóa đơn <b><span id="invCount">0</span> TK</b> (báo cáo PDF chính chủ Facebook, đúng khoảng ngày), lưu vào <b>Downloads/G7-HoaDon</b> theo tên <b>Tên TK - ID.pdf</b>. Tải <b>nhiều TK cùng lúc</b> ở cửa sổ nền, không chuyển tab, tải xong tự đóng:</div>

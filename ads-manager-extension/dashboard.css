@@ -153,6 +153,7 @@ a.lnk:hover { color: var(--accent-ink); text-decoration: underline; }
 .inv-range label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
 .inv-range input[type="date"] { padding: 7px 10px; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: #111; font: inherit; font-size: 14px; color-scheme: light; cursor: pointer; min-width: 150px; }
 .inv-range input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; opacity: .85; }
+.inv-range select { padding: 7px 10px; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: #111; font: inherit; font-size: 13.5px; cursor: pointer; }
 .modal-body { overflow: auto; padding: 16px 18px; }
 .modal-foot { display: flex; gap: 8px; justify-content: flex-end; padding: 12px 18px; border-top: 1px solid var(--line); flex-wrap: wrap; }
 .icon-x { border: 0; background: transparent; font-size: 20px; cursor: pointer; color: var(--muted); line-height: 1; }

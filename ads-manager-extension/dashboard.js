@@ -208,6 +208,7 @@ function invPreset(p) {
 function openInvoice() {
   if (!selectedAccounts().length) return;
   invPreset('thismonth');
+  chrome.storage.local.get('invSpeed', d => { if (d.invSpeed && $('invSpeed').querySelector(`[value="${d.invSpeed}"]`)) $('invSpeed').value = d.invSpeed; });
   $('invoiceModal').hidden = false;
 }
 function sanitizeName(s) { return String(s || '').replace(/[\\/:*?"<>|\n\r\t]/g, '-').replace(/\s+/g, ' ').trim().slice(0, 120) || 'TKQC'; }
@@ -222,9 +223,18 @@ function doDownloadInvoices() {
     const biz = a.businessId ? `&business_id=${a.businessId}` : '';
     return `https://adsmanager.facebook.com/adsmanager/billing_hub/payment_activity?asset_id=${a.accountId}&payment_account_id=${a.accountId}${biz}&placement=BILLING_HUB&date=${start}_${end}&g7auto=1`;
   });
-  chrome.runtime.sendMessage({ type: 'openInvoicePages', pages }, () => {});
+  // Tốc độ: tải quá nhanh Facebook báo spam / bắt xác minh. Mặc định "chậm".
+  const SPEED = {
+    slow:   { parallel: 1, gapMin: 6000, gapMax: 10000, label: 'từng TK một, nghỉ 6–10s' },
+    medium: { parallel: 2, gapMin: 4000, gapMax: 6000,  label: '2 TK cùng lúc, nghỉ 4–6s' },
+    fast:   { parallel: 4, gapMin: 1000, gapMax: 2000,  label: '4 TK cùng lúc' }
+  };
+  const speedKey = SPEED[$('invSpeed').value] ? $('invSpeed').value : 'slow';
+  const sp = SPEED[speedKey];
+  chrome.storage.local.set({ invSpeed: speedKey });
+  chrome.runtime.sendMessage({ type: 'openInvoicePages', pages, parallel: sp.parallel, gapMin: sp.gapMin, gapMax: sp.gapMax }, () => {});
   $('invoiceModal').hidden = true;
-  showNotice(`Đang tự tải hóa đơn ${accs.length} TK (tối đa 4 TK cùng lúc) ở cửa sổ nền nhỏ, không đổi tab, tải xong tự đóng. Lưu vào Downloads/G7-HoaDon theo "Tên TK - ID.pdf". Nếu Chrome hỏi cho phép tải nhiều tệp, chọn Cho phép.`);
+  showNotice(`Đang tự tải hóa đơn ${accs.length} TK (${sp.label}) ở cửa sổ nền nhỏ, không đổi tab, tải xong tự đóng. Lưu vào Downloads/G7-HoaDon theo "Tên TK - ID.pdf". Nếu Chrome hỏi cho phép tải nhiều tệp, chọn Cho phép.`);
 }
 
 // ==== Đặt giới hạn chi tiêu (spend cap) ====

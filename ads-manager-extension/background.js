@@ -66,7 +66,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       downloadInvoices(msg.items, msg.start, msg.end, msg.report).then(d => sendResponse({ ok: true, data: d })).catch(e => sendResponse({ ok: false, error: e.message }));
       return true;
     case 'openInvoicePages':
-      openInvoicePages(msg.pages).then(d => sendResponse({ ok: true, data: d })).catch(e => sendResponse({ ok: false, error: e.message }));
+      openInvoicePages(msg.pages, { parallel: msg.parallel, gapMin: msg.gapMin, gapMax: msg.gapMax }).then(d => sendResponse({ ok: true, data: d })).catch(e => sendResponse({ ok: false, error: e.message }));
       return true;
     case 'getRates':
       getRates().then(d => sendResponse({ ok: true, data: d })).catch(e => sendResponse({ ok: false, error: e.message }));
@@ -189,20 +189,28 @@ function downloadOneTab(url) {
     });
   });
 }
-// Tải NHIỀU TK cùng lúc: chạy tối đa INVOICE_PARALLEL cửa sổ nền song song, xong
-// cái nào thì lấy TK kế tiếp. Giới hạn để Facebook không chặn vì mở quá nhiều.
-var INVOICE_PARALLEL = 4;
-async function openInvoicePages(pages) {
+// Tải nhiều TK: chạy tối đa `parallel` cửa sổ nền song song, xong cái nào lấy TK
+// kế tiếp. Giữa các TK nghỉ ngẫu nhiên gapMin..gapMax ms (giống người thật) — tải
+// dồn dập quá Facebook báo spam / bắt xác minh. Mặc định: từng TK, nghỉ 6–10s.
+function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+function rnd(min, max) { return Math.floor(min + Math.random() * (max - min + 1)); }
+async function openInvoicePages(pages, opts) {
+  opts = opts || {};
+  var parallel = Math.max(1, Math.min(opts.parallel || 1, 4));
+  var gapMin = opts.gapMin >= 0 ? opts.gapMin : 6000;
+  var gapMax = opts.gapMax >= gapMin ? opts.gapMax : Math.max(gapMin, 10000);
   var next = 0;
-  async function worker() {
+  async function worker(idx) {
+    // lệch pha các worker để không mở nhiều cửa sổ cùng một nhịp
+    if (idx > 0) await sleep(idx * rnd(2000, 3500));
     while (next < pages.length) {
       var url = pages[next++];
       await downloadOneTab(url);
-      await new Promise(function (r) { setTimeout(r, 300); });
+      if (next < pages.length) await sleep(rnd(gapMin, gapMax));
     }
   }
   var workers = [];
-  for (var w = 0; w < Math.min(INVOICE_PARALLEL, pages.length); w++) workers.push(worker());
+  for (var w = 0; w < Math.min(parallel, pages.length); w++) workers.push(worker(w));
   await Promise.all(workers);
   return { opened: pages.length };
 }
