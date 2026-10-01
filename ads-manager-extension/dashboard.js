@@ -51,7 +51,13 @@ const COLUMNS = [
     cell: a => `<div class="acc-head"><a class="acc-name lnk" href="${adsManagerUrl(esc(a.accountId))}" target="_blank" rel="noopener" title="${esc(a.name)}">${esc(a.name)}</a><button class="dots" data-id="${esc(a.id)}" title="Tùy chọn">⋯</button></div><div class="acc-id trunc">${esc(a.accountId)}${a.business ? ' · ' + esc(a.business) : ''}</div>`,
     foot: rows => `${rows.length} tài khoản quảng cáo` },
   { key: 'rootId', label: 'ID gốc', sort: 'rootId', w: 185,
-    cell: a => a.rootId ? `${esc(a.rootId)} <span class="muted">${esc(a.rootType)}</span>` : '' },
+    // BM -> trang cài đặt doanh nghiệp; VIA (cá nhân sở hữu) -> trang cá nhân.
+    cell: a => {
+      if (!a.rootId) return '';
+      const href = a.rootType === 'BM' ? bmSettingsUrl(esc(a.rootId)) : `https://www.facebook.com/profile.php?id=${esc(a.rootId)}`;
+      const title = a.rootType === 'BM' ? 'Mở cài đặt doanh nghiệp (BM)' : 'Mở trang cá nhân sở hữu TK';
+      return `<a class="lnk" href="${href}" target="_blank" rel="noopener" title="${title}">${esc(a.rootId)}</a> <span class="muted">${esc(a.rootType)}</span>`;
+    } },
   { key: 'balance', label: 'Số dư', num: true, sort: 'balance', sumKey: 'balance', w: 120,
     cell: a => a.balance === null ? '' : `<a class="lnk" href="${billingUrl(esc(a.accountId))}" target="_blank" rel="noopener" title="Mở trang thanh toán / hóa đơn của TK">${mval(a, a.balance)}</a>` },
   { key: 'threshold', label: 'Ngưỡng', num: true, sort: 'threshold', sumKey: 'threshold', w: 120,
@@ -488,7 +494,7 @@ function render() {
 
 // ==== Bảng Business Manager & Page (có sắp xếp khi bấm tiêu đề) ====
 let BMSORT = { key: null, dir: 1 };
-const bmSettingsUrl = id => `https://business.facebook.com/settings/info?business_id=${id}`;
+const bmSettingsUrl = id => `https://business.facebook.com/latest/settings/business_overview/?nav_ref=bm_settings_redirect_migration&bm_redirect_migration=true&business_id=${id}`;
 const dash = '<span class="muted">—</span>';
 
 const BM_COLS = [
