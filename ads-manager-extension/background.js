@@ -394,10 +394,10 @@ function money(v, currency) {
 const STATUS = {
   1: { label: 'Hoạt động', kind: 'active' },
   2: { label: 'Vô hiệu hóa', kind: 'disabled' },
-  3: { label: 'Chưa thanh toán', kind: 'warn' },
+  3: { label: 'Cần thanh toán', kind: 'unpaid' },        // unsettled: nợ chưa trả
   7: { label: 'Chờ xét duyệt rủi ro', kind: 'warn' },
-  8: { label: 'Chờ thanh toán', kind: 'warn' },
-  9: { label: 'Trong hạn gia hạn', kind: 'warn' },
+  8: { label: 'Cần thanh toán (chờ)', kind: 'unpaid' },  // pending settlement
+  9: { label: 'Cần thanh toán (gia hạn)', kind: 'unpaid' }, // in grace period
   100: { label: 'Chờ đóng', kind: 'disabled' },
   101: { label: 'Đã đóng', kind: 'disabled' }
 };

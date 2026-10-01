@@ -172,6 +172,7 @@ a.lnk:hover { color: var(--accent-ink); text-decoration: underline; }
 .status.active { color: var(--accent-ink); } .status.active .dot { background: var(--accent); }
 .status.disabled { color: var(--danger); } .status.disabled .dot { background: var(--danger); }
 .status.warn { color: var(--warn); } .status.warn .dot { background: var(--warn); }
+.status.unpaid { color: #c2410c; } .status.unpaid .dot { background: #ea580c; }
 
 .note-input { width: 150px; border: 1px solid transparent; border-radius: 6px; padding: 4px 6px; background: transparent; color: var(--ink); font: inherit; }
 .note-input:hover, .note-input:focus { border-color: var(--line); background: var(--bg); }
