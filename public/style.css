@@ -118,7 +118,8 @@ h1, h2, h3 { text-wrap: balance; }
   box-shadow: var(--shadow);
   padding: 32px 28px;
 }
-.login-logo { font-size: 40px; text-align: center; }
+.login-logo { text-align: center; margin-bottom: 8px; }
+.login-logo img { max-width: 240px; width: 100%; height: auto; }
 .login-card h1 { font-size: 20px; margin: 8px 0 4px; text-align: center; }
 .login-sub { color: var(--ink-2); text-align: center; margin: 0 0 22px; font-size: 13px; }
 .login-card label {
@@ -181,7 +182,8 @@ select:focus-visible, input:focus-visible, textarea:focus-visible, button:focus-
   background: var(--card);
   border-bottom: 1px solid var(--line);
 }
-.brand { font-weight: 700; font-size: 15px; white-space: nowrap; }
+.brand { font-weight: 700; font-size: 15px; white-space: nowrap; display: flex; align-items: center; gap: 8px; }
+.brand-logo { height: 32px; width: auto; display: block; }
 .tabs { display: flex; gap: 4px; flex: 1; overflow-x: auto; }
 .tab {
   font: inherit;
