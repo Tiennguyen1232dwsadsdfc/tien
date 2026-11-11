@@ -64,27 +64,27 @@ const COLUMNS = [
     cell: a => a.threshold === null ? '' : `<a class="lnk" href="${settingsUrl(esc(a.accountId), a.businessId)}" target="_blank" rel="noopener" title="Mở Thiết lập tài khoản quảng cáo">${mval(a, a.threshold)}</a>` },
   { key: 'thresholdLeft', label: 'Ngưỡng còn lại', num: true, sort: 'thresholdLeft', sumKey: 'thresholdLeft', w: 130,
     cell: a => { const low = a.thresholdLeft !== null && a.threshold !== null && a.thresholdLeft <= a.threshold * 0.2; return `<span class="${low ? 'low' : ''}">${mval(a, a.thresholdLeft)}</span>`; } },
-  { key: 'spendCap', label: 'Limit', num: true, sort: 'spendCap', sumKey: 'spendCap', w: 115,
-    cell: a => a.spendCap === null ? '<span class="muted">No limit</span>' : mval(a, a.spendCap) },
-  { key: 'setLimit', label: 'Đặt limit', sort: 'spendCap', w: 150,
+  { key: 'spendCap', label: 'Giới hạn chi tiêu', num: true, sort: 'spendCap', sumKey: 'spendCap', w: 140,
+    cell: a => a.spendCap === null ? '<span class="muted">Chưa đặt</span>' : mval(a, a.spendCap) },
+  { key: 'setLimit', label: 'Đặt giới hạn chi tiêu', sort: 'spendCap', w: 170,
     cell: a => {
       const cap = a.spendCap, sp = a.amountSpent || 0;
       let bar, tip;
       if (cap && cap > 0) {
         const pct = Math.min(sp / cap * 100, 100);
         const cls = pct >= 90 ? 'danger' : (pct >= 70 ? 'warn' : '');
-        tip = `Đã tiêu ${mval(a, sp)} / Limit ${mval(a, cap)} ${curOf(a)} (${pct.toFixed(0)}%)`;
+        tip = `Đã tiêu ${mval(a, sp)} / Giới hạn ${mval(a, cap)} ${curOf(a)} (${pct.toFixed(0)}%)`;
         bar = `<div class="lim-bar ${cls}"><i style="width:${pct}%"></i></div>`;
       } else {
-        tip = 'Chưa đặt giới hạn (No limit)';
+        tip = 'Chưa đặt giới hạn chi tiêu';
         bar = `<div class="lim-bar none"><i></i></div>`;
       }
-      return `<div class="lim-wrap" title="${esc(tip)}">${bar}<button class="setlim" data-id="${esc(a.id)}" title="Đặt giới hạn chi tiêu cho tài khoản">Đặt limit</button></div>`;
+      return `<div class="lim-wrap" title="${esc(tip)}">${bar}<button class="setlim" data-id="${esc(a.id)}" title="Đặt giới hạn chi tiêu cho tài khoản">Đặt giới hạn</button></div>`;
     } },
   { key: 'spent', label: 'Tổng tiêu', num: true, sort: 'spent', dyn: true, sumSpent: true, w: 120,
     cell: a => { const sp = spent(a); return sp === undefined ? '<span class="muted">…</span>' : (sp === null ? '<span class="muted">lỗi</span>' : mval(a, sp)); } },
   { key: 'accountType', label: 'Loại tài khoản', sort: 'accountType', w: 115, cell: a => esc(a.accountType || '') },
-  { key: 'payment', label: 'Thẻ thanh toán', sort: 'payment', w: 140, cell: a => esc(a.payment || '') },
+  { key: 'payment', label: 'Thẻ thanh toán', sort: 'payment', w: 220, cell: a => `<span class="trunc" title="${esc(a.payment || '')}">${esc(a.payment || '')}</span>` },
   { key: 'nextBill', label: 'Ngày lập hóa đơn', sort: 'nextBill', w: 130, cell: a => a.nextBill ? shortDate(a.nextBill) : '' },
   { key: 'hiddenAdmins', label: 'Quản trị viên ẩn', num: true, sort: 'hiddenAdmins', w: 120, cell: a => a.hiddenAdmins == null ? '' : a.hiddenAdmins },
   { key: 'timezone', label: 'Múi giờ', sort: 'timezone', w: 140, cell: a => esc(a.timezone || '') },
@@ -520,7 +520,7 @@ const BM_COLS = [
   { key: 'name', label: 'Tên BM', cell: b => `<a class="acc-name lnk" href="${bmSettingsUrl(esc(b.id))}" target="_blank" rel="noopener" title="Mở Cài đặt cho doanh nghiệp">${esc(b.name)}</a><div class="acc-id">${esc(b.id)}</div>` },
   { key: 'type', label: 'Loại BM', cell: () => dash },
   { key: 'role', label: 'Quyền sở hữu', cell: b => esc(b.role) },
-  { key: 'limit', label: 'Limit', cell: () => dash },
+  { key: 'limit', label: 'Giới hạn chi tiêu', cell: () => dash },
   { key: 'verified', label: 'Verified', cell: b => esc(b.verified) },
   { key: 'created', label: 'Created', cell: b => shortDate(b.created), val: b => b.created ? Date.parse(b.created) : null },
   { key: 'slAdmin', label: 'SL Admin', num: true, cell: b => b.slAdmin == null ? '' : b.slAdmin },
@@ -583,7 +583,7 @@ function renderPages() {
 function exportCsv() {
   if (SUB === 'bm') {
     const rows = (BM && BM.businesses) || [];
-    download(['Trạng thái', 'Tên BM', 'ID', 'Loại BM', 'Quyền', 'Limit', 'Verified', 'Created', 'SL Admin', 'SL Adaccount'],
+    download(['Trạng thái', 'Tên BM', 'ID', 'Loại BM', 'Quyền', 'Giới hạn chi tiêu', 'Verified', 'Created', 'SL Admin', 'SL Adaccount'],
       rows.map(b => ['', csv(b.name), `="${b.id}"`, '', b.role, '', b.verified, shortDate(b.created), b.slAdmin ?? '', b.slAdaccount ?? '']), 'bm');
     return;
   }
