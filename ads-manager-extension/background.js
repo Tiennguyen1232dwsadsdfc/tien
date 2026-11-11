@@ -13,7 +13,7 @@ const ACC_FIELDS_BASE = [
   'name', 'account_id', 'account_status', 'disable_reason',
   'balance', 'amount_spent', 'spend_cap', 'currency',
   'adspaymentcycle{threshold_amount}', 'min_daily_budget',
-  'funding_source_details', 'timezone_name', 'adtrust_dsl', 'tasks', 'created_time'
+  'funding_source_details{id,display_string,type}', 'timezone_name', 'adtrust_dsl', 'tasks', 'created_time'
 ];
 // Trường có thể không tồn tại tùy version/tài khoản — dò trước khi dùng để không vỡ cả request.
 const ACC_FIELDS_RISKY = ['is_prepay_account', 'users.summary(true)', 'business{id,name}', 'owner'];
@@ -462,6 +462,20 @@ const DISABLE_REASON = {
   7: 'Đóng vĩnh viễn', 8: 'TK đại lý không dùng', 9: 'Tài khoản không hoạt động'
 };
 
+// Loại phương thức thanh toán (funding_source_details.type) khi Facebook không trả tên thẻ.
+const FUND_TYPE = {
+  1: 'Thẻ tín dụng / ghi nợ', 2: 'Số dư Facebook', 3: 'Tín dụng trả trước', 4: 'Hạn mức tín dụng (Invoice)',
+  5: 'Đơn hàng', 6: 'Hóa đơn hàng tháng', 7: 'Token', 8: 'Thanh toán ngoài', 12: 'PayPal', 13: 'PayPal',
+  15: 'Nạp tiền ngoài', 17: 'Ghi nợ trực tiếp', 19: 'Ví điện tử / khác', 20: 'Số dư trả trước'
+};
+function paymentLabel(a) {
+  const f = a.funding_source_details;
+  if (f && f.display_string) return f.display_string;
+  if (f && FUND_TYPE[f.type]) return FUND_TYPE[f.type];
+  if (a.is_prepay_account) return 'Trả trước – chưa có thẻ';
+  return '';
+}
+
 function normalize(a) {
   const cur = a.currency || 'VND';
   const threshold = a.adspaymentcycle && a.adspaymentcycle.data && a.adspaymentcycle.data[0]
@@ -495,7 +509,8 @@ function normalize(a) {
     dailyLimit: a.adtrust_dsl !== undefined && a.adtrust_dsl !== null && Number(a.adtrust_dsl) > 0 ? Number(a.adtrust_dsl) : null,
     amountSpent: money(a.amount_spent, cur),
     minDaily: money(a.min_daily_budget, cur),
-    payment: funding && funding.display_string ? funding.display_string : '',
+    payment: paymentLabel(a),
+    paymentKnown: !!(funding && (funding.display_string || FUND_TYPE[funding.type])),
     accountType: a.is_prepay_account === undefined ? '' : (a.is_prepay_account ? 'Trả trước' : 'Trả sau'),
     hiddenAdmins: a.users && a.users.summary ? a.users.summary.total_count : null,
     nextBill: null,

@@ -89,7 +89,11 @@ const COLUMNS = [
   { key: 'spent', label: 'Tổng tiêu', num: true, sort: 'spent', dyn: true, sumSpent: true, w: 120,
     cell: a => { const sp = spent(a); return sp === undefined ? '<span class="muted">…</span>' : (sp === null ? '<span class="muted">lỗi</span>' : mval(a, sp)); } },
   { key: 'accountType', label: 'Loại tài khoản', sort: 'accountType', w: 115, cell: a => esc(a.accountType || '') },
-  { key: 'payment', label: 'Thẻ thanh toán', sort: 'payment', w: 220, cell: a => `<span class="trunc" title="${esc(a.payment || '')}">${esc(a.payment || '')}</span>` },
+  { key: 'payment', label: 'Thẻ thanh toán', sort: 'payment', w: 220,
+    // Trống = Facebook không trả thông tin thẻ (TK chưa thêm thẻ, hoặc không có quyền xem tài chính trong BM chủ).
+    cell: a => a.payment
+      ? `<span class="trunc" title="${esc(a.payment)}">${esc(a.payment)}</span>`
+      : '<span class="muted" title="Facebook không trả thông tin thẻ: TK chưa thêm phương thức thanh toán, hoặc bạn không có quyền xem tài chính trong BM sở hữu TK này">Chưa có thẻ</span>' },
   { key: 'nextBill', label: 'Ngày lập hóa đơn', sort: 'nextBill', w: 130, cell: a => a.nextBill ? shortDate(a.nextBill) : '' },
   { key: 'hiddenAdmins', label: 'Quản trị viên ẩn', num: true, sort: 'hiddenAdmins', w: 120, cell: a => a.hiddenAdmins == null ? '' : a.hiddenAdmins },
   { key: 'timezone', label: 'Múi giờ', sort: 'timezone', w: 140, cell: a => esc(a.timezone || '') },
