@@ -107,6 +107,10 @@ async function init() {
   WIDTHS = stored.colWidths || {};
   buildColPanel();
   setupResize();
+  setupBackgroundLinks();
+  // Mặc định mở lên là chi tiêu HÔM NAY (không phải tổng). load() sẽ tải chi tiêu theo RANGE.
+  $('datePreset').value = 'today';
+  onPresetChange();
   if (stored.lastData) { DATA = stored.lastData; render(); }
   load(false);
 
@@ -353,6 +357,20 @@ function loadPages() {
 }
 
 // ==== Lọc theo ngày ====
+// Mọi link ngoài (tên TK, số dư, ngưỡng, ID gốc, BM, Page) mở ở TAB NỀN: tab mới
+// được tạo nhưng KHÔNG chuyển màn hình, người dùng vẫn ở lại tab tiện ích.
+// Giữ nguyên hành vi khi bấm giữa / Ctrl / Shift.
+function setupBackgroundLinks() {
+  document.addEventListener('click', e => {
+    if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+    const a = e.target.closest('a[target="_blank"]');
+    if (!a || !a.href || !/^https?:/.test(a.href)) return;
+    e.preventDefault();
+    chrome.tabs.create({ url: a.href, active: false }, () => {
+      if (chrome.runtime.lastError) window.open(a.href, '_blank', 'noopener');
+    });
+  });
+}
 function ymd(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 function dmy(s) { const [y, m, d] = s.split('-'); return `${d}/${m}/${y}`; }
 function onPresetChange() {
@@ -377,7 +395,7 @@ function applyCustomRange() {
   if (since > until) { showNotice('Ngày bắt đầu phải trước ngày kết thúc.'); return; }
   hideNotice(); setRange({ since, until, label: `${dmy(since)}–${dmy(until)}` });
 }
-function setRange(range) { RANGE = range; SPEND = {}; render(); if (range) loadSpend(); }
+function setRange(range) { RANGE = range; SPEND = {}; render(); if (range && DATA) loadSpend(); }
 function loadSpend() {
   showNotice(`Đang tải chi tiêu ${RANGE.label}…`);
   const asked = RANGE;
