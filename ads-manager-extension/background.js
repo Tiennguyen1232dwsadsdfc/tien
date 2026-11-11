@@ -48,7 +48,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       loadAccounts(!!msg.forceToken).then(d => sendResponse({ ok: true, data: d })).catch(e => sendResponse({ ok: false, error: e.message }));
       return true;
     case 'loadBM':
-      loadBM().then(d => sendResponse({ ok: true, data: d })).catch(e => sendResponse({ ok: false, error: e.message }));
+      loadBM(!!msg.reprobe).then(d => sendResponse({ ok: true, data: d })).catch(e => sendResponse({ ok: false, error: e.message }));
       return true;
     case 'loadPages':
       loadPages().then(d => sendResponse({ ok: true, data: d })).catch(e => sendResponse({ ok: false, error: e.message }));
@@ -299,33 +299,87 @@ function verifyLabel(v) {
 }
 
 // Danh sách Business Manager với các cột: verified, ngày tạo, số admin, số TKQC.
-async function loadBM() {
+// API công khai KHÔNG có trường "loại BM / giới hạn tạo TKQC / bị hạn chế". Token lấy từ
+// Ads Manager là token nội bộ nên đôi khi đọc được trường ẩn: dò thử trên 1 BM, trường
+// nào trả về thì dùng cho tất cả (kết quả dò được cache, "Tải lại dữ liệu" sẽ dò lại).
+const BM_PROBE = [
+  'ad_account_creation_limit', 'adaccount_creation_limit', 'ad_account_limit', 'ad_accounts_limit',
+  'is_disabled_for_integrity_reasons', 'is_restricted', 'restriction_status', 'business_status', 'status',
+  'can_create_ad_account', 'sharing_eligibility_status', 'two_factor_type', 'primary_page{id,name}',
+  'timezone_id', 'vertical', 'payment_account_id', 'is_hidden', 'link'
+];
+async function bmExtraFields(token, sampleId, reprobe) {
+  if (!reprobe) {
+    const { bmFieldSupport } = await chrome.storage.local.get('bmFieldSupport');
+    if (bmFieldSupport) return bmFieldSupport;
+  }
+  const ok = [];
+  for (const f of BM_PROBE) {
+    const key = f.split('{')[0];
+    try { const j = await graphGet(`${sampleId}?fields=${encodeURIComponent(f)}`, token); if (j && key in j) ok.push(f); } catch (_) {}
+  }
+  await chrome.storage.local.set({ bmFieldSupport: ok });
+  return ok;
+}
+const ROLE_VI = { ADMIN: 'Quản trị viên', EMPLOYEE: 'Nhân viên', FINANCE_EDITOR: 'Tài chính (sửa)', FINANCE_ANALYST: 'Tài chính (xem)', DEVELOPER: 'Nhà phát triển', PARTNER_CENTER_ADMIN: 'Admin đối tác' };
+async function loadBM(reprobe) {
   return withToken(async token => {
-    // thử lấy kèm số liệu tổng hợp; nếu thiếu quyền thì lấy bản gọn
-    const rich = 'id,name,verification_status,created_time,owned_ad_accounts.summary(true).limit(1),business_users.summary(true).limit(1)';
     const base = 'id,name,verification_status,created_time';
+    const summary = ',owned_ad_accounts.summary(true).limit(1),business_users.summary(true).limit(1)';
     async function fetchAll(fields) {
       const out = []; let after = null;
       for (let page = 0; page < 15; page++) {
-        const j = await graphGet(`me/businesses?fields=${fields}&limit=100${after ? '&after=' + after : ''}`, token);
+        const j = await graphGet(`me/businesses?fields=${encodeURIComponent(fields)}&limit=100${after ? '&after=' + after : ''}`, token);
         out.push(...(j.data || []));
         after = j.paging && j.paging.next && j.paging.cursors ? j.paging.cursors.after : null;
         if (!after) break;
       }
       return out;
     }
-    let raw;
-    try { raw = await fetchAll(rich); } catch (_) { raw = await fetchAll(base); }
-    const businesses = raw.map(b => ({
-      id: b.id,
-      name: b.name,
-      verified: verifyLabel(b.verification_status),
-      created: b.created_time || null,
-      slAdmin: b.business_users && b.business_users.summary ? b.business_users.summary.total_count : null,
-      slAdaccount: b.owned_ad_accounts && b.owned_ad_accounts.summary ? b.owned_ad_accounts.summary.total_count : null,
-      role: 'ADMIN'
-    }));
-    return { fetchedAt: Date.now(), businesses };
+    // 1) danh sách gọn để có 1 ID mẫu -> dò trường ẩn
+    let raw = await fetchAll(base);
+    let extra = [];
+    if (raw.length) { try { extra = await bmExtraFields(token, raw[0].id, !!reprobe); } catch (_) {} }
+    // 2) tải đầy đủ: base + tổng hợp + trường ẩn dò được; lùi dần nếu thiếu quyền
+    const attempts = [base + summary + (extra.length ? ',' + extra.join(',') : ''), base + summary, base + (extra.length ? ',' + extra.join(',') : '')];
+    for (const f of attempts) { if (f === base) break; try { raw = await fetchAll(f); break; } catch (_) {} }
+    // 3) quyền thật của tôi trong từng BM
+    const roles = {};
+    try {
+      let after = null;
+      for (let page = 0; page < 10; page++) {
+        const j = await graphGet(`me/business_users?fields=business{id},role&limit=100${after ? '&after=' + after : ''}`, token);
+        (j.data || []).forEach(u => { if (u.business && u.business.id) roles[u.business.id] = u.role; });
+        after = j.paging && j.paging.next && j.paging.cursors ? j.paging.cursors.after : null;
+        if (!after) break;
+      }
+    } catch (_) {}
+
+    const num = v => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
+    const businesses = raw.map(b => {
+      const limit = num(b.ad_account_creation_limit) ?? num(b.adaccount_creation_limit) ?? num(b.ad_account_limit) ?? num(b.ad_accounts_limit);
+      let status = null;
+      if (b.is_disabled_for_integrity_reasons === true || b.is_restricted === true || b.can_create_ad_account === false
+        || (b.restriction_status && !/^(none|unrestricted|ok)$/i.test(String(b.restriction_status)))) status = 'Restricted';
+      else if ('is_disabled_for_integrity_reasons' in b || 'is_restricted' in b || 'restriction_status' in b || 'can_create_ad_account' in b || 'business_status' in b || 'status' in b) status = 'Live';
+      const rawStatus = b.restriction_status || b.business_status || b.status || null;
+      const role = roles[b.id] || null;
+      return {
+        id: b.id,
+        name: b.name,
+        verified: verifyLabel(b.verification_status),
+        created: b.created_time || null,
+        slAdmin: b.business_users && b.business_users.summary ? b.business_users.summary.total_count : null,
+        slAdaccount: b.owned_ad_accounts && b.owned_ad_accounts.summary ? b.owned_ad_accounts.summary.total_count : null,
+        role: role ? (ROLE_VI[role] || role) : 'Quản trị viên',
+        limit, bmType: limit ? 'BM' + limit : null,
+        status, rawStatus,
+        primaryPage: b.primary_page && b.primary_page.name ? b.primary_page.name : null,
+        twoFactor: b.two_factor_type || null,
+        link: b.link || null
+      };
+    });
+    return { fetchedAt: Date.now(), businesses, extraFields: extra };
   });
 }
 

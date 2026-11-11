@@ -119,7 +119,7 @@ async function init() {
   if (stored.lastData) { DATA = stored.lastData; render(); }
   load(false);
 
-  $('reload').addEventListener('click', () => { load(true); if (SUB === 'bm') loadBM(); if (SUB === 'page') loadPages(); });
+  $('reload').addEventListener('click', () => { load(true); if (SUB === 'bm') loadBM(true); if (SUB === 'page') loadPages(); });
   $('search').addEventListener('input', render);
   $('statusFilter').addEventListener('change', render);
   $('exportCsv').addEventListener('click', exportCsv);
@@ -342,13 +342,19 @@ function load(forceToken) {
     hideNotice(); DATA = res.data; render(); if (RANGE) loadSpend();
   });
 }
-function loadBM() {
+function loadBM(reprobe) {
   showLoading(true);
-  showNotice('Đang tải tài khoản trong Business Manager…');
-  chrome.runtime.sendMessage({ type: 'loadBM' }, res => {
+  showNotice('Đang tải Business Manager' + (reprobe ? ' và dò trường ẩn' : '') + '…');
+  chrome.runtime.sendMessage({ type: 'loadBM', reprobe: !!reprobe }, res => {
     showLoading(false);
     if (!res || !res.ok) { showNotice((res && res.error) || 'Lỗi tải BM', true); return; }
-    hideNotice(); BM = res.data; if (SUB === 'bm') render();
+    BM = res.data; if (SUB === 'bm') render();
+    // Báo rõ Facebook có trả trường ẩn (loại BM / hạn chế) hay không, để biết cột nào có dữ liệu thật.
+    const ex = (BM.extraFields || []).filter(f => /limit|restrict|status|integrity|can_create/.test(f));
+    const n = (BM.businesses || []).length;
+    if (ex.length) showNotice(`Đã tải ${n} BM. Facebook trả thêm trường: ${ex.join(', ')}.`);
+    else showNotice(`Đã tải ${n} BM. Facebook không trả trường "loại BM / hạn chế" cho tài khoản này (API không công bố các trường đó) — cột Trạng thái, Loại BM, Giới hạn sẽ để trống.`);
+    setTimeout(hideNotice, 12000);
   });
 }
 function loadPages() {
@@ -521,33 +527,38 @@ const bmSettingsUrl = id => `https://business.facebook.com/latest/settings/busin
 const dash = '<span class="muted">—</span>';
 
 const BM_COLS = [
-  { key: 'status', label: 'Trạng thái', cell: () => dash },
-  { key: 'name', label: 'Tên BM', cell: b => `<a class="acc-name lnk" href="${bmSettingsUrl(esc(b.id))}" target="_blank" rel="noopener" title="Mở Cài đặt cho doanh nghiệp">${esc(b.name)}</a><div class="acc-id">${esc(b.id)}</div>` },
-  { key: 'type', label: 'Loại BM', cell: () => dash },
-  { key: 'role', label: 'Quyền sở hữu', cell: b => esc(b.role) },
-  { key: 'limit', label: 'Giới hạn chi tiêu', cell: () => dash },
-  { key: 'verified', label: 'Verified', cell: b => esc(b.verified) },
-  { key: 'created', label: 'Created', cell: b => shortDate(b.created), val: b => b.created ? Date.parse(b.created) : null },
-  { key: 'slAdmin', label: 'SL Admin', num: true, cell: b => b.slAdmin == null ? '' : b.slAdmin },
-  { key: 'slAdaccount', label: 'SL Adaccount', num: true, cell: b => b.slAdaccount == null ? '' : b.slAdaccount }
+  { key: 'status', label: 'Trạng thái', w: 125, val: b => b.status || null,
+    cell: b => b.status ? `<span class="status ${b.status === 'Restricted' ? 'disabled' : 'active'}" title="${esc(b.rawStatus || '')}"><span class="dot"></span>${b.status === 'Restricted' ? 'Hạn chế' : 'Live'}</span>` : dash },
+  { key: 'name', label: 'Tên BM', w: 300, cell: b => `<a class="acc-name lnk" href="${bmSettingsUrl(esc(b.id))}" target="_blank" rel="noopener" title="Mở Cài đặt cho doanh nghiệp">${esc(b.name)}</a><div class="acc-id">${esc(b.id)}${b.primaryPage ? ' · ' + esc(b.primaryPage) : ''}</div>` },
+  { key: 'bmType', label: 'Loại BM', w: 100, val: b => b.limit || null, cell: b => b.bmType ? `<b>${esc(b.bmType)}</b>` : dash },
+  { key: 'role', label: 'Quyền sở hữu', w: 130, cell: b => esc(b.role) },
+  { key: 'limit', label: 'TKQC / Giới hạn', w: 130, num: true, val: b => b.limit || null,
+    cell: b => b.limit ? `${b.slAdaccount == null ? '?' : b.slAdaccount} <span class="muted">/ ${b.limit}</span>` : dash },
+  { key: 'verified', label: 'Verified', w: 130, cell: b => `<span class="${b.verified === 'VERIFIED' ? 'verified' : (b.verified === 'REJECTED' ? 'low' : 'muted')}">${esc(b.verified)}</span>` },
+  { key: 'created', label: 'Ngày tạo', w: 110, cell: b => shortDate(b.created), val: b => b.created ? Date.parse(b.created) : null },
+  { key: 'slAdmin', label: 'SL Admin', w: 95, num: true, cell: b => b.slAdmin == null ? '' : b.slAdmin },
+  { key: 'slAdaccount', label: 'SL TKQC', w: 95, num: true, cell: b => b.slAdaccount == null ? '' : b.slAdaccount }
 ];
 
 const PAGE_COLS = [
-  { key: 'stt', label: 'STT', num: true, cell: p => p.stt },
-  { key: 'name', label: 'Page', cell: p => `<a class="acc-name lnk" href="${esc(p.link)}" target="_blank" rel="noopener" title="Mở Page">${esc(p.name)}</a><div class="acc-id">${esc(p.id)}</div>` },
-  { key: 'verified', label: 'Xác thực', cell: p => esc(p.verified) },
-  { key: 'posts', label: 'SL Post', num: true, cell: p => p.posts == null ? '' : p.posts },
-  { key: 'created', label: 'Ngày tạo Page', cell: p => p.created ? shortDate(p.created) : dash, val: p => p.created ? Date.parse(p.created) : null },
-  { key: 'businessId', label: 'Thuộc BM', cell: p => p.businessId ? esc(p.businessId) : dash },
-  { key: 'currency', label: 'Tiền tệ', cell: p => p.currency ? esc(p.currency) : dash },
-  { key: 'canAdvertise', label: 'Có thể QC', cell: p => p.canAdvertise == null ? dash : (p.canAdvertise ? '<span class="verified">✓</span>' : '✕') },
-  { key: 'banReason', label: 'Lý do ban QC', cell: p => p.banReason ? esc(p.banReason) : dash }
+  { key: 'stt', label: 'STT', w: 60, num: true, cell: p => p.stt },
+  { key: 'name', label: 'Page', w: 300, cell: p => `<a class="acc-name lnk" href="${esc(p.link)}" target="_blank" rel="noopener" title="Mở Page">${esc(p.name)}</a><div class="acc-id">${esc(p.id)}</div>` },
+  { key: 'verified', label: 'Xác thực', w: 130, cell: p => esc(p.verified) },
+  { key: 'posts', label: 'SL Post', w: 90, num: true, cell: p => p.posts == null ? '' : p.posts },
+  { key: 'created', label: 'Ngày tạo Page', w: 120, cell: p => p.created ? shortDate(p.created) : dash, val: p => p.created ? Date.parse(p.created) : null },
+  { key: 'businessId', label: 'Thuộc BM', w: 170, cell: p => p.businessId ? esc(p.businessId) : dash },
+  { key: 'currency', label: 'Tiền tệ', w: 80, cell: p => p.currency ? esc(p.currency) : dash },
+  { key: 'canAdvertise', label: 'Có thể QC', w: 95, cell: p => p.canAdvertise == null ? dash : (p.canAdvertise ? '<span class="verified">✓</span>' : '✕') },
+  { key: 'banReason', label: 'Lý do ban QC', w: 180, cell: p => p.banReason ? esc(p.banReason) : dash }
 ];
 
 function renderTable(cols, rows, headId, bodyId, footId, sortState, footText) {
+  // Độ rộng cố định theo cols[].w (table-layout: fixed lấy theo hàng tiêu đề)
+  const tbl = $(headId).closest('table');
+  if (tbl) tbl.style.width = Math.max(cols.reduce((s, c) => s + (c.w || 120), 0), tbl.parentElement.clientWidth - 2) + 'px';
   $(headId).innerHTML = cols.map(c => {
     const ind = sortState.key === c.key ? `<span class="sort-ind">${sortState.dir === 1 ? '▲' : '▼'}</span>` : '';
-    return `<th class="sortable ${c.num ? 'num' : ''}" data-k="${c.key}">${esc(c.label)}${ind}</th>`;
+    return `<th class="sortable ${c.num ? 'num' : ''}" data-k="${c.key}" style="width:${c.w || 120}px">${esc(c.label)}${ind}</th>`;
   }).join('');
   $(headId).querySelectorAll('th.sortable').forEach(th => th.addEventListener('click', () => {
     const k = th.dataset.k;
@@ -588,8 +599,8 @@ function renderPages() {
 function exportCsv() {
   if (SUB === 'bm') {
     const rows = (BM && BM.businesses) || [];
-    download(['Trạng thái', 'Tên BM', 'ID', 'Loại BM', 'Quyền', 'Giới hạn chi tiêu', 'Verified', 'Created', 'SL Admin', 'SL Adaccount'],
-      rows.map(b => ['', csv(b.name), `="${b.id}"`, '', b.role, '', b.verified, shortDate(b.created), b.slAdmin ?? '', b.slAdaccount ?? '']), 'bm');
+    download(['Trạng thái', 'Tên BM', 'ID', 'Loại BM', 'Quyền', 'Giới hạn TKQC', 'Verified', 'Ngày tạo', 'SL Admin', 'SL TKQC'],
+      rows.map(b => [b.status || '', csv(b.name), `="${b.id}"`, b.bmType || '', b.role, b.limit ?? '', b.verified, shortDate(b.created), b.slAdmin ?? '', b.slAdaccount ?? '']), 'bm');
     return;
   }
   if (SUB === 'page') {
