@@ -436,6 +436,9 @@ function normalize(a) {
     threshold,
     thresholdLeft: threshold !== null && balance !== null ? Math.max(threshold - balance, 0) : null,
     spendCap: spendCap && spendCap > 0 ? spendCap : null,
+    // Giới hạn chi tiêu HÀNG NGÀY do Meta đặt cho TK (adtrust_dsl), tính theo đơn vị
+    // tiền tệ của TK. Không phải TK nào cũng "no limit": mỗi TK có mức riêng.
+    dailyLimit: a.adtrust_dsl !== undefined && a.adtrust_dsl !== null && Number(a.adtrust_dsl) > 0 ? Number(a.adtrust_dsl) : null,
     amountSpent: money(a.amount_spent, cur),
     minDaily: money(a.min_daily_budget, cur),
     payment: funding && funding.display_string ? funding.display_string : '',

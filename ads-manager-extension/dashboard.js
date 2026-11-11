@@ -64,8 +64,13 @@ const COLUMNS = [
     cell: a => a.threshold === null ? '' : `<a class="lnk" href="${settingsUrl(esc(a.accountId), a.businessId)}" target="_blank" rel="noopener" title="Mở Thiết lập tài khoản quảng cáo">${mval(a, a.threshold)}</a>` },
   { key: 'thresholdLeft', label: 'Ngưỡng còn lại', num: true, sort: 'thresholdLeft', sumKey: 'thresholdLeft', w: 130,
     cell: a => { const low = a.thresholdLeft !== null && a.threshold !== null && a.thresholdLeft <= a.threshold * 0.2; return `<span class="${low ? 'low' : ''}">${mval(a, a.thresholdLeft)}</span>`; } },
-  { key: 'spendCap', label: 'Giới hạn chi tiêu', num: true, sort: 'spendCap', sumKey: 'spendCap', w: 140,
-    cell: a => a.spendCap === null ? '<span class="muted">Chưa đặt</span>' : mval(a, a.spendCap) },
+  { key: 'spendCap', label: 'Giới hạn chi tiêu', num: true, sort: 'spendCap', sumKey: 'spendCap', w: 170,
+    // Tự đặt -> hiện số đó. Chưa tự đặt -> hiện giới hạn NGÀY do Meta đặt cho TK (adtrust_dsl).
+    cell: a => {
+      if (a.spendCap !== null) return mval(a, a.spendCap);
+      if (a.dailyLimit) return `<span title="Giới hạn chi tiêu hàng ngày do Meta đặt cho tài khoản này">${mval(a, a.dailyLimit)}<span class="muted"> /ngày</span></span>`;
+      return '<span class="muted">Chưa đặt</span>';
+    } },
   { key: 'setLimit', label: 'Đặt giới hạn chi tiêu', sort: 'spendCap', w: 170,
     cell: a => {
       const cap = a.spendCap, sp = a.amountSpent || 0;
@@ -76,7 +81,7 @@ const COLUMNS = [
         tip = `Đã tiêu ${mval(a, sp)} / Giới hạn ${mval(a, cap)} ${curOf(a)} (${pct.toFixed(0)}%)`;
         bar = `<div class="lim-bar ${cls}"><i style="width:${pct}%"></i></div>`;
       } else {
-        tip = 'Chưa đặt giới hạn chi tiêu';
+        tip = a.dailyLimit ? `Chưa tự đặt giới hạn. Meta cho chạy tối đa ${mval(a, a.dailyLimit)} ${curOf(a)}/ngày` : 'Chưa đặt giới hạn chi tiêu';
         bar = `<div class="lim-bar none"><i></i></div>`;
       }
       return `<div class="lim-wrap" title="${esc(tip)}">${bar}<button class="setlim" data-id="${esc(a.id)}" title="Đặt giới hạn chi tiêu cho tài khoản">Đặt giới hạn</button></div>`;
@@ -607,7 +612,7 @@ function csvCell(c, a) {
     case 'balance': return a.balance ?? '';
     case 'threshold': return a.threshold ?? '';
     case 'thresholdLeft': return a.thresholdLeft ?? '';
-    case 'spendCap': return a.spendCap ?? '';
+    case 'spendCap': return a.spendCap ?? (a.dailyLimit ? a.dailyLimit + '/ngày (Meta)' : '');
     case 'setLimit': return a.spendCap ?? '';
     case 'spent': return spent(a) ?? '';
     case 'accountType': return csv(a.accountType || '');
