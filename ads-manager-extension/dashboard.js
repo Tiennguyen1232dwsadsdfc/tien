@@ -2,7 +2,7 @@ const $ = id => document.getElementById(id);
 let DATA = null, BM = null, PAGES = null;
 let SUB = 'ca-nhan';
 let NOTES = {};
-let RANGE = null, SPEND = {};
+let RANGE = null, SPEND = {}, SPEND_RANGES = {};
 let SORT = { key: null, dir: 1 };
 let PSORT = { key: null, dir: 1 };
 let HIDDEN = new Set();       // key các cột đang ẩn
@@ -87,7 +87,7 @@ const COLUMNS = [
       return `<div class="lim-wrap" title="${esc(tip)}">${bar}<button class="setlim" data-id="${esc(a.id)}" title="Đặt giới hạn chi tiêu cho tài khoản">Đặt giới hạn</button></div>`;
     } },
   { key: 'spent', label: 'Tổng tiêu', num: true, sort: 'spent', dyn: true, sumSpent: true, w: 120,
-    cell: a => { const sp = spent(a); return sp === undefined ? '<span class="muted">…</span>' : (sp === null ? '<span class="muted">lỗi</span>' : mval(a, sp)); } },
+    cell: a => { const sp = spent(a); return sp === undefined ? '<span class="muted">…</span>' : (sp === null ? '<span class="muted">lỗi</span>' : `<span title="${esc(spentTip(a))}">${mval(a, sp)}</span>`); } },
   { key: 'accountType', label: 'Loại tài khoản', sort: 'accountType', w: 115, cell: a => esc(a.accountType || '') },
   { key: 'payment', label: 'Thẻ thanh toán', sort: 'payment', w: 220,
     // Trống = Facebook không trả thông tin thẻ (TK chưa thêm thẻ, hoặc không có quyền xem tài chính trong BM chủ).
@@ -402,7 +402,7 @@ function onPresetChange() {
   if (v === '30d') { since = ymd(day(-29)); label = '30 ngày qua'; }
   if (v === 'thismonth') { since = ymd(new Date(today.getFullYear(), today.getMonth(), 1)); label = 'tháng này'; }
   if (v === 'lastmonth') { since = ymd(new Date(today.getFullYear(), today.getMonth() - 1, 1)); until = ymd(new Date(today.getFullYear(), today.getMonth(), 0)); label = 'tháng trước'; }
-  setRange({ since, until, label: label + ` (${dmy(since)}–${dmy(until)})` });
+  setRange({ since, until, preset: v, label: label + ` (${dmy(since)}–${dmy(until)})` });
 }
 function applyCustomRange() {
   const since = $('dateFrom').value, until = $('dateTo').value;
@@ -410,17 +410,28 @@ function applyCustomRange() {
   if (since > until) { showNotice('Ngày bắt đầu phải trước ngày kết thúc.'); return; }
   hideNotice(); setRange({ since, until, label: `${dmy(since)}–${dmy(until)}` });
 }
-function setRange(range) { RANGE = range; SPEND = {}; render(); if (range && DATA) loadSpend(); }
+function setRange(range) { RANGE = range; SPEND = {}; SPEND_RANGES = {}; render(); if (range && DATA) loadSpend(); }
 function loadSpend() {
   showNotice(`Đang tải chi tiêu ${RANGE.label}…`);
   const asked = RANGE;
-  chrome.runtime.sendMessage({ type: 'loadSpend', since: RANGE.since, until: RANGE.until }, res => {
+  // preset (hôm nay/hôm qua/…) được background tính lại THEO MÚI GIỜ TỪNG TK, giống Ads Manager.
+  chrome.runtime.sendMessage({ type: 'loadSpend', since: RANGE.since, until: RANGE.until, preset: RANGE.preset || null }, res => {
     if (RANGE !== asked) return;
     if (!res || !res.ok) { showNotice((res && res.error) || 'Lỗi tải chi tiêu', true); return; }
-    hideNotice(); SPEND = res.data; render();
+    hideNotice();
+    SPEND = res.data && res.data.spend ? res.data.spend : (res.data || {});
+    SPEND_RANGES = res.data && res.data.ranges ? res.data.ranges : {};
+    render();
   });
 }
 function spent(a) { if (!RANGE) return a.amountSpent; return a.id in SPEND ? SPEND[a.id] : undefined; }
+// Chú thích ô Tổng tiêu: ngày thực tế đã hỏi Facebook cho TK này + múi giờ TK.
+function spentTip(a) {
+  if (!RANGE) return 'Tổng tiêu trọn đời của tài khoản';
+  const r = SPEND_RANGES[a.id];
+  const d = r ? (r.since === r.until ? dmy(r.since) : `${dmy(r.since)}–${dmy(r.until)}`) : RANGE.label;
+  return `Chi tiêu ${d} theo múi giờ TK${a.timezone ? ' (' + a.timezone + ')' : ''} — cùng cách tính với Ads Manager`;
+}
 
 // ==== Tiện ích hiển thị ====
 function showNotice(msg, isError) { const n = $('notice'); n.textContent = msg; n.classList.toggle('error', !!isError); n.hidden = false; }

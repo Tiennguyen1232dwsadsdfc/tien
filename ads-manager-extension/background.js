@@ -54,7 +54,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       loadPages().then(d => sendResponse({ ok: true, data: d })).catch(e => sendResponse({ ok: false, error: e.message }));
       return true;
     case 'loadSpend':
-      loadSpend(msg.since, msg.until).then(d => sendResponse({ ok: true, data: d })).catch(e => sendResponse({ ok: false, error: e.message }));
+      loadSpend(msg.since, msg.until, msg.preset).then(d => sendResponse({ ok: true, data: d })).catch(e => sendResponse({ ok: false, error: e.message }));
       return true;
     case 'renameAccount':
       renameAccount(msg.id, msg.name).then(d => sendResponse({ ok: true, data: d })).catch(e => sendResponse({ ok: false, error: e.message }));
@@ -418,22 +418,52 @@ async function loadPages() {
 }
 
 // ==== Chi tiêu theo ngày (Insights: trả theo đơn vị tiền tệ tài khoản) ====
-async function loadSpend(since, until) {
+// Facebook tính "ngày" theo MÚI GIỜ CỦA TỪNG TKQC (nhiều TK để giờ Mỹ). Với preset
+// (hôm nay/hôm qua/7 ngày/…) ta tính lại since/until theo múi giờ của chính TK đó —
+// đúng như Ads Manager hiển thị. Khoảng ngày tùy chọn thì gửi nguyên (FB tự quy về giờ TK).
+function ymdInTz(date, tz) {
+  try { return new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date); }
+  catch (_) { return null; }
+}
+function addDays(ymd, n) {
+  const [y, m, d] = ymd.split('-').map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d + n));
+  return t.toISOString().slice(0, 10);
+}
+function rangeForTz(preset, tz, now) {
+  const today = ymdInTz(now, tz);
+  if (!today) return null;
+  const [y, m] = today.split('-').map(Number);
+  const first = (yy, mm) => `${yy}-${String(mm).padStart(2, '0')}-01`;
+  switch (preset) {
+    case 'today': return { since: today, until: today };
+    case 'yesterday': { const d = addDays(today, -1); return { since: d, until: d }; }
+    case '7d': return { since: addDays(today, -6), until: today };
+    case '30d': return { since: addDays(today, -29), until: today };
+    case 'thismonth': return { since: first(y, m), until: today };
+    case 'lastmonth': { const pm = m === 1 ? 12 : m - 1, py = m === 1 ? y - 1 : y; return { since: first(py, pm), until: addDays(first(y, m), -1) }; }
+    default: return null;
+  }
+}
+async function loadSpend(since, until, preset) {
   return withToken(async token => {
     const { lastData } = await chrome.storage.local.get('lastData');
-    const ids = ((lastData && lastData.accounts) || []).map(a => a.id);
-    const timeRange = encodeURIComponent(JSON.stringify({ since, until }));
-    const out = {};
+    const accs = (lastData && lastData.accounts) || [];
+    const now = new Date();
+    const spend = {}, ranges = {};
     const CHUNK = 8;
-    for (let i = 0; i < ids.length; i += CHUNK) {
-      await Promise.all(ids.slice(i, i + CHUNK).map(async id => {
+    for (let i = 0; i < accs.length; i += CHUNK) {
+      await Promise.all(accs.slice(i, i + CHUNK).map(async a => {
+        const r = (preset && a.timezone && rangeForTz(preset, a.timezone, now)) || { since, until };
+        ranges[a.id] = r;
+        const timeRange = encodeURIComponent(JSON.stringify(r));
         try {
-          const j = await graphGet(`${id}/insights?fields=spend&time_range=${timeRange}`, token);
-          out[id] = j.data && j.data[0] && j.data[0].spend !== undefined ? Number(j.data[0].spend) : 0;
-        } catch (_) { out[id] = null; }
+          const j = await graphGet(`${a.id}/insights?fields=spend&level=account&time_range=${timeRange}`, token);
+          spend[a.id] = j.data && j.data[0] && j.data[0].spend !== undefined ? Number(j.data[0].spend) : 0;
+        } catch (_) { spend[a.id] = null; }
       }));
     }
-    return out;
+    return { spend, ranges };
   });
 }
 
