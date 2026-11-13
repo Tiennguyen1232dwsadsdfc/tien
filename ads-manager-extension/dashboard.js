@@ -356,9 +356,8 @@ function loadBM(reprobe) {
     // Báo rõ Facebook có trả trường ẩn (loại BM / hạn chế) hay không, để biết cột nào có dữ liệu thật.
     const ex = (BM.extraFields || []).filter(f => /limit|restrict|status|integrity|can_create/.test(f));
     const n = (BM.businesses || []).length;
-    if (ex.length) showNotice(`Đã tải ${n} BM. Facebook trả thêm trường: ${ex.join(', ')}.`);
+    if (ex.length) showNotice(`Đã tải ${n} BM. Facebook trả thêm trường: ${ex.join(', ')}. (Rê chuột vào cột Trạng thái để xem giá trị thô của từng BM.)`);
     else showNotice(`Đã tải ${n} BM. Facebook không trả trường "loại BM / hạn chế" cho tài khoản này (API không công bố các trường đó) — cột Trạng thái, Loại BM, Giới hạn sẽ để trống.`);
-    setTimeout(hideNotice, 12000);
   });
 }
 function loadPages() {
@@ -542,8 +541,14 @@ const bmSettingsUrl = id => `https://business.facebook.com/latest/settings/busin
 const dash = '<span class="muted">—</span>';
 
 const BM_COLS = [
-  { key: 'status', label: 'Trạng thái', w: 125, val: b => b.status || null,
-    cell: b => b.status ? `<span class="status ${b.status === 'Restricted' ? 'disabled' : 'active'}" title="${esc(b.rawStatus || '')}"><span class="dot"></span>${b.status === 'Restricted' ? 'Hạn chế' : 'Live'}</span>` : dash },
+  { key: 'status', label: 'Trạng thái', w: 210, val: b => b.status || null,
+    // Hiện kèm tên trường + giá trị thô FB trả về (để đối chiếu, vì FB không công bố ý nghĩa các trường ẩn).
+    cell: b => {
+      const raw = Object.entries(b.rawExtra || {}).map(([k, v]) => `${k}=${v}`).join('\n');
+      if (!b.status) return raw ? `${dash}<div class="acc-id" title="${esc(raw)}">${esc(raw.split('\n')[0])}</div>` : dash;
+      const pill = `<span class="status ${b.status === 'Restricted' ? 'disabled' : 'active'}" title="${esc(raw)}"><span class="dot"></span>${b.status === 'Restricted' ? 'Hạn chế' : 'Live'}</span>`;
+      return pill + (b.statusWhy ? `<div class="acc-id trunc" title="${esc(raw)}">${esc(b.statusWhy)}</div>` : '');
+    } },
   { key: 'name', label: 'Tên BM', w: 300, cell: b => `<a class="acc-name lnk" href="${bmSettingsUrl(esc(b.id))}" target="_blank" rel="noopener" title="Mở Cài đặt cho doanh nghiệp">${esc(b.name)}</a><div class="acc-id">${esc(b.id)}${b.primaryPage ? ' · ' + esc(b.primaryPage) : ''}</div>` },
   { key: 'bmType', label: 'Loại BM', w: 100, val: b => b.limit || null, cell: b => b.bmType ? `<b>${esc(b.bmType)}</b>` : dash },
   { key: 'role', label: 'Quyền sở hữu', w: 130, cell: b => esc(b.role) },

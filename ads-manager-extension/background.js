@@ -366,6 +366,12 @@ async function loadBM(reprobe) {
       else if ('is_disabled_for_integrity_reasons' in b || 'is_restricted' in b || 'restriction_status' in b || 'business_status' in b || 'status' in b) status = 'Live';
       const rawStatus = b.restriction_status || b.business_status || b.status || null;
       const canCreate = typeof b.can_create_ad_account === 'boolean' ? b.can_create_ad_account : null;
+      // Giá trị thô của mọi trường ẩn dò được — hiển thị để đối chiếu vì FB không công bố ý nghĩa.
+      const rawExtra = {};
+      extra.forEach(f => { const k = f.split('{')[0]; if (k in b && k !== 'primary_page') rawExtra[k] = typeof b[k] === 'object' ? JSON.stringify(b[k]) : String(b[k]); });
+      const statusWhy = status === 'Restricted'
+        ? (b.is_disabled_for_integrity_reasons === true ? 'is_disabled_for_integrity_reasons=true' : b.is_restricted === true ? 'is_restricted=true' : 'restriction_status=' + b.restriction_status)
+        : null;
       const role = roles[b.id] || null;
       return {
         id: b.id,
@@ -376,7 +382,7 @@ async function loadBM(reprobe) {
         slAdaccount: b.owned_ad_accounts && b.owned_ad_accounts.summary ? b.owned_ad_accounts.summary.total_count : null,
         role: role ? (ROLE_VI[role] || role) : 'Quản trị viên',
         limit, bmType: limit ? 'BM' + limit : null,
-        status, rawStatus, canCreate,
+        status, rawStatus, canCreate, rawExtra, statusWhy,
         primaryPage: b.primary_page && b.primary_page.name ? b.primary_page.name : null,
         twoFactor: b.two_factor_type || null,
         link: b.link || null
