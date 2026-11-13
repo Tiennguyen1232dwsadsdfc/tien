@@ -44,6 +44,17 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     case 'invoiceDone':
       if (_sender && _sender.tab && PENDING[_sender.tab.id]) PENDING[_sender.tab.id]();
       return;
+    case 'bmProbe':
+      onBmProbe(msg.probe, _sender && _sender.tab ? _sender.tab.id : null);
+      return;
+    case 'scanBM':
+      scanBM(msg.ids || []).catch(() => {});
+      sendResponse({ ok: true });
+      return;
+    case 'stopScanBM':
+      SCAN.stop = true;
+      sendResponse({ ok: true });
+      return;
     case 'loadAccounts':
       loadAccounts(!!msg.forceToken).then(d => sendResponse({ ok: true, data: d })).catch(e => sendResponse({ ok: false, error: e.message }));
       return true;
@@ -321,6 +332,77 @@ async function bmExtraFields(token, sampleId, reprobe) {
   await chrome.storage.local.set({ bmFieldSupport: ok });
   return ok;
 }
+// ---- Giới hạn tạo TKQC của BM (BM3 / BM5 / BM10 / BM350) ----
+// Số này chỉ hiện trên trang Cài đặt doanh nghiệp ("Giới hạn tạo tài khoản quảng cáo"), do
+// GraphQL nội bộ trả về. hook.js đọc các phản hồi GraphQL trên trang đó và gửi về đây mọi
+// khóa "*limit*"; khóa nào trông giống giới hạn tạo TKQC thì lưu vào bmLimits[business_id].
+// Toàn bộ khóa thô được ghi vào bmProbeLog để đối chiếu khi chưa đoán đúng tên khóa.
+const LIMIT_KEY = /(ad_?account|adaccount).*limit|limit.*(ad_?account|adaccount)|creation_limit/i;
+const SCAN = { stop: false, waiting: {} };
+let PROBE_CHAIN = Promise.resolve();
+function onBmProbe(p, tabId) {
+  // tuần tự hoá: nhiều phản hồi GraphQL về cùng lúc -> tránh ghi đè storage lẫn nhau
+  PROBE_CHAIN = PROBE_CHAIN.then(() => onBmProbeNow(p, tabId)).catch(() => {});
+}
+async function onBmProbeNow(p, tabId) {
+  if (!p || !Array.isArray(p.keys)) return;
+  const bid = p.bid || p.vbid || null;
+  const { bmLimits = {}, bmProbeLog = [] } = await chrome.storage.local.get(['bmLimits', 'bmProbeLog']);
+  let found = null, restricted = null;
+  for (const [k, v] of p.keys) {
+    const n = Number(v);
+    if (found == null && LIMIT_KEY.test(k) && Number.isInteger(n) && n >= 0 && n <= 100000) found = { key: k, limit: n };
+    if (/^(is_)?restricted$|is_disabled_for_integrity/i.test(k) && (v === 'true' || v === 'false')) restricted = v === 'true';
+  }
+  bmProbeLog.push({ at: Date.now(), bid, friendly: p.friendly || null, docId: p.docId || null, page: p.page || null, keys: p.keys.slice(0, 40) });
+  const upd = { bmProbeLog: bmProbeLog.slice(-60) };
+  if (bid && (found || restricted != null)) {
+    const cur = bmLimits[bid] || {};
+    if (found) { cur.limit = found.limit; cur.key = found.key; }
+    if (restricted != null) cur.restricted = restricted;
+    cur.at = Date.now();
+    bmLimits[bid] = cur; upd.bmLimits = bmLimits;
+  }
+  await chrome.storage.local.set(upd);
+  if (bid && found && SCAN.waiting[bid]) SCAN.waiting[bid]();
+  else if (tabId != null && found && SCAN.waiting['tab:' + tabId]) SCAN.waiting['tab:' + tabId]();
+}
+// Quét lần lượt từng BM: mở ngầm trang Cài đặt doanh nghiệp (tab nền, không chuyển tab),
+// chờ hook.js bắt được giới hạn (hoặc hết giờ) rồi đóng tab, nghỉ ngẫu nhiên 3–6s giữa các BM.
+async function scanBM(ids) {
+  if (SCAN.running) return;
+  SCAN.running = true; SCAN.stop = false;
+  const total = ids.length; let done = 0, hit = 0;
+  const report = (current, finished) => chrome.storage.local.set({ bmScan: { running: !finished, total, done, hit, current: current || null, at: Date.now() } });
+  await report(null, false);
+  try {
+    for (const id of ids) {
+      if (SCAN.stop) break;
+      await report(id, false);
+      const before = ((await chrome.storage.local.get('bmLimits')).bmLimits || {})[id];
+      const url = `https://business.facebook.com/latest/settings/business_info?business_id=${encodeURIComponent(id)}`;
+      await new Promise(resolve => {
+        chrome.tabs.create({ url, active: false }, tab => {
+          const tid = tab && tab.id; let fin = false;
+          const finish = () => {
+            if (fin) return; fin = true;
+            delete SCAN.waiting[id]; if (tid != null) delete SCAN.waiting['tab:' + tid];
+            setTimeout(() => { if (tid != null) chrome.tabs.remove(tid, () => void chrome.runtime.lastError); resolve(); }, 1500);
+          };
+          SCAN.waiting[id] = finish; if (tid != null) SCAN.waiting['tab:' + tid] = finish;
+          setTimeout(finish, 30000);
+        });
+      });
+      const after = ((await chrome.storage.local.get('bmLimits')).bmLimits || {})[id];
+      if (after && after.limit != null && (!before || before.at !== after.at)) hit++;
+      done++;
+      if (!SCAN.stop && done < total) await sleep(rnd(3000, 6000));
+    }
+  } finally {
+    SCAN.running = false;
+    await report(null, true);
+  }
+}
 const ROLE_VI = { ADMIN: 'Quản trị viên', EMPLOYEE: 'Nhân viên', FINANCE_EDITOR: 'Tài chính (sửa)', FINANCE_ANALYST: 'Tài chính (xem)', DEVELOPER: 'Nhà phát triển', PARTNER_CENTER_ADMIN: 'Admin đối tác' };
 async function loadBM(reprobe) {
   return withToken(async token => {
@@ -356,8 +438,10 @@ async function loadBM(reprobe) {
     } catch (_) {}
 
     const num = v => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
+    const { bmLimits = {} } = await chrome.storage.local.get('bmLimits');
     const businesses = raw.map(b => {
-      const limit = num(b.ad_account_creation_limit) ?? num(b.adaccount_creation_limit) ?? num(b.ad_account_limit) ?? num(b.ad_accounts_limit);
+      const scanned = bmLimits[b.id] || null;
+      const limit = (scanned && num(scanned.limit)) ?? num(b.ad_account_creation_limit) ?? num(b.adaccount_creation_limit) ?? num(b.ad_account_limit) ?? num(b.ad_accounts_limit);
       // "Hạn chế" CHỈ khi Facebook nói rõ BM bị hạn chế/vô hiệu. can_create_ad_account=false
       // không phải hạn chế: thường chỉ là đã dùng hết hạn mức tạo TKQC.
       let status = null;
@@ -381,7 +465,8 @@ async function loadBM(reprobe) {
         slAdmin: b.business_users && b.business_users.summary ? b.business_users.summary.total_count : null,
         slAdaccount: b.owned_ad_accounts && b.owned_ad_accounts.summary ? b.owned_ad_accounts.summary.total_count : null,
         role: role ? (ROLE_VI[role] || role) : 'Quản trị viên',
-        limit, bmType: limit ? 'BM' + limit : null,
+        limit, bmType: limit ? 'BM' + limit : null, limitSource: scanned && scanned.limit != null ? 'scan' : (limit ? 'api' : null),
+        limitAt: scanned && scanned.limit != null ? scanned.at : null,
         status, rawStatus, canCreate, rawExtra, statusWhy,
         primaryPage: b.primary_page && b.primary_page.name ? b.primary_page.name : null,
         twoFactor: b.two_factor_type || null,

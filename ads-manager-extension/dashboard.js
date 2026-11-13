@@ -143,6 +143,10 @@ async function init() {
   setupRenameMenu();
   setupSpendCapMenu();
 
+  $('scanBmBtn').addEventListener('click', toggleScanBM);
+  chrome.storage.onChanged.addListener((ch, area) => { if (area === 'local' && ch.bmScan) onScanProgress(ch.bmScan.newValue); });
+  chrome.storage.local.get('bmScan', s => { if (s.bmScan && s.bmScan.running) onScanProgress(s.bmScan); });
+
   $('invoiceBtn').addEventListener('click', openInvoice);
   $('invClose').addEventListener('click', () => $('invoiceModal').hidden = true);
   $('invClose2').addEventListener('click', () => $('invoiceModal').hidden = true);
@@ -164,6 +168,7 @@ async function init() {
     $('wrap-page').hidden = SUB !== 'page';
     $('foot-note').hidden = SUB !== 'ca-nhan';
     $('colBtn').style.display = SUB === 'ca-nhan' ? '' : 'none';
+    $('scanBmBtn').style.display = SUB === 'bm' ? '' : 'none';
     if (SUB === 'bm' && !BM) loadBM();
     if (SUB === 'page' && !PAGES) loadPages();
     render();
@@ -353,11 +358,52 @@ function loadBM(reprobe) {
     showLoading(false);
     if (!res || !res.ok) { showNotice((res && res.error) || 'Lỗi tải BM', true); return; }
     BM = res.data; if (SUB === 'bm') render();
+    if (SCANNING) return; // đang quét: giữ thông báo tiến độ
     // Báo rõ Facebook có trả trường ẩn (loại BM / hạn chế) hay không, để biết cột nào có dữ liệu thật.
+    const bs = BM.businesses || [], n = bs.length;
     const ex = (BM.extraFields || []).filter(f => /limit|restrict|status|integrity|can_create/.test(f));
-    const n = (BM.businesses || []).length;
-    if (ex.length) showNotice(`Đã tải ${n} BM. Facebook trả thêm trường: ${ex.join(', ')}. (Rê chuột vào cột Trạng thái để xem giá trị thô của từng BM.)`);
-    else showNotice(`Đã tải ${n} BM. Facebook không trả trường "loại BM / hạn chế" cho tài khoản này (API không công bố các trường đó) — cột Trạng thái, Loại BM, Giới hạn sẽ để trống.`);
+    const scanned = bs.filter(b => b.limitSource === 'scan').length;
+    const why = {}; bs.forEach(b => { if (b.statusWhy) why[b.statusWhy] = (why[b.statusWhy] || 0) + 1; });
+    const whyTxt = Object.entries(why).map(([k, c]) => `${c} BM "Hạn chế" do ${k}`).join('; ');
+    const parts = [`Đã tải ${n} BM.`];
+    parts.push(scanned ? `Đã có giới hạn tạo TKQC của ${scanned}/${n} BM (bấm "Quét giới hạn BM" để cập nhật số còn lại).`
+      : 'Chưa có giới hạn tạo TKQC (loại BM) — bấm "Quét giới hạn BM" để đọc từ trang Cài đặt doanh nghiệp.');
+    if (ex.length) parts.push(`Trường ẩn API trả về: ${ex.join(', ')}.` + (whyTxt ? ' ' + whyTxt + '.' : ''));
+    showNotice(parts.join(' '));
+  });
+}
+
+// ==== Quét giới hạn tạo TKQC của từng BM (mở ngầm trang Cài đặt doanh nghiệp) ====
+let SCANNING = false;
+function toggleScanBM() {
+  if (SCANNING) { chrome.runtime.sendMessage({ type: 'stopScanBM' }); showNotice('Đang dừng quét…'); return; }
+  const bs = (BM && BM.businesses) || [];
+  if (!bs.length) { showNotice('Chưa có danh sách BM để quét.', true); return; }
+  const missing = bs.filter(b => b.limitSource !== 'scan');
+  const ids = (missing.length ? missing : bs).map(b => b.id);
+  const secs = Math.round(ids.length * 9);
+  if (!confirm(`Quét ${ids.length} BM${missing.length && missing.length < bs.length ? ' (chưa có giới hạn)' : ''}?\n\nTiện ích sẽ mở NGẦM lần lượt trang Cài đặt doanh nghiệp của từng BM trong tab nền (không chuyển tab của bạn), đọc "Giới hạn tạo tài khoản quảng cáo" rồi tự đóng. Mỗi BM cách nhau vài giây để không bị Facebook báo spam.\n\nƯớc tính: ~${Math.ceil(secs / 60)} phút. Có thể bấm nút lần nữa để dừng.`)) return;
+  chrome.runtime.sendMessage({ type: 'scanBM', ids }, () => void chrome.runtime.lastError);
+}
+function onScanProgress(s) {
+  if (!s) return;
+  SCANNING = !!s.running;
+  $('scanBmBtn').textContent = SCANNING ? `Dừng quét (${s.done}/${s.total})` : 'Quét giới hạn BM';
+  $('scanBmBtn').classList.toggle('primary', SCANNING);
+  if (SCANNING) {
+    const name = s.current && BM ? ((BM.businesses || []).find(b => b.id === s.current) || {}).name : null;
+    showNotice(`Đang quét giới hạn BM: ${s.done}/${s.total} xong, đọc được ${s.hit}. Đang mở: ${name || s.current || '…'}`);
+    return;
+  }
+  if (s.hit > 0) { showNotice(`Quét xong: đọc được giới hạn tạo TKQC của ${s.hit}/${s.done} BM. Đang cập nhật bảng…`); loadBM(); return; }
+  // Không đọc được: liệt kê các khóa "limit" đã thấy trên trang để đối chiếu / sửa tên khóa.
+  chrome.storage.local.get('bmProbeLog', st => {
+    const seen = new Set();
+    (st.bmProbeLog || []).forEach(e => (e.keys || []).forEach(([k, v]) => { if (/limit/i.test(k)) seen.add(`${k}=${v}`); }));
+    const list = [...seen].slice(0, 40).join(', ');
+    showNotice(`Quét xong ${s.done} BM nhưng chưa đọc được giới hạn tạo TKQC. ` + (list
+      ? `Các khóa "limit" thấy trên trang Cài đặt: ${list}` + (seen.size > 40 ? ' …' : '')
+      : 'Trang Cài đặt doanh nghiệp không trả khóa nào chứa "limit" (có thể cần đăng nhập Facebook trong trình duyệt này hoặc BM không mở được).'), true);
   });
 }
 function loadPages() {
@@ -553,7 +599,7 @@ const BM_COLS = [
   { key: 'bmType', label: 'Loại BM', w: 100, val: b => b.limit || null, cell: b => b.bmType ? `<b>${esc(b.bmType)}</b>` : dash },
   { key: 'role', label: 'Quyền sở hữu', w: 130, cell: b => esc(b.role) },
   { key: 'limit', label: 'TKQC / Giới hạn', w: 130, num: true, val: b => b.limit || null,
-    cell: b => b.limit ? `${b.slAdaccount == null ? '?' : b.slAdaccount} <span class="muted">/ ${b.limit}</span>`
+    cell: b => b.limit ? `<span title="${b.limitSource === 'scan' ? 'Đọc từ trang Cài đặt doanh nghiệp' + (b.limitAt ? ' lúc ' + new Date(b.limitAt).toLocaleString('vi-VN') : '') : 'Facebook API trả về'}">${b.slAdaccount == null ? '?' : b.slAdaccount} <span class="muted">/ ${b.limit}</span></span>`
       : (b.canCreate === false ? '<span class="muted" title="Facebook báo BM này hiện không tạo thêm được TKQC (đã hết hạn mức hoặc chưa đủ điều kiện)">Hết hạn mức</span>'
         : (b.canCreate === true ? '<span class="verified" title="BM này vẫn tạo thêm được TKQC">Còn tạo được</span>' : dash)) },
   { key: 'verified', label: 'Verified', w: 130, cell: b => `<span class="${b.verified === 'VERIFIED' ? 'verified' : (b.verified === 'REJECTED' ? 'low' : 'muted')}">${esc(b.verified)}</span>` },
