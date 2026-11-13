@@ -25,9 +25,10 @@
     try { return new URLSearchParams(location.search).get('business_id') || null; } catch (e) { return null; }
   }
   function reqMeta(body) {
-    var meta = { friendly: null, docId: null, vbid: null };
+    var meta = { friendly: null, docId: null, vbid: null, raw: null };
     try {
       var s = typeof body === 'string' ? body : (body && typeof body.toString === 'function' && !(body instanceof FormData) ? String(body) : '');
+      if (typeof body === 'string') meta.raw = body;
       if (body instanceof FormData) {
         meta.friendly = body.get('fb_api_req_friendly_name'); meta.docId = body.get('doc_id');
         var v = body.get('variables'); if (v) s = 'variables=' + encodeURIComponent(v);
@@ -40,6 +41,8 @@
     } catch (e) {}
     return meta;
   }
+  var LIMIT_KEY = /(ad_?account|adaccount).*limit|limit.*(ad_?account|adaccount)|creation_limit/i;
+  var reqSent = false;
   function scanResp(text, meta) {
     if (typeof text !== 'string' || text.length > 4000000) return;
     if (!/limit|restrict|integrity|is_disabled/.test(text)) return;
@@ -56,7 +59,13 @@
       if (keys.length >= 80) break;
     }
     if (!keys.length) return;
-    try { window.postMessage({ __adsmgr_bmprobe: { bid: bizId(), vbid: meta.vbid, friendly: meta.friendly, docId: meta.docId, keys: keys, page: location.pathname } }, '*'); } catch (e) {}
+    var msg = { bid: bizId(), vbid: meta.vbid, friendly: meta.friendly, docId: meta.docId, keys: keys, page: location.pathname };
+    // Request nào trả về giới hạn tạo TKQC thì gửi kèm nguyên văn (url + body) để service worker
+    // hỏi lại cho các BM khác mà không phải mở trang — chỉ gửi 1 lần mỗi trang.
+    if (!reqSent && meta.raw && meta.raw.length < 60000 && keys.some(function (kv) { return LIMIT_KEY.test(kv[0]); })) {
+      reqSent = true; msg.req = { url: meta.url || null, body: meta.raw };
+    }
+    try { window.postMessage({ __adsmgr_bmprobe: msg }, '*'); } catch (e) {}
   }
   function isGraph(u) { return /\/api\/graphql|\/graphql\//.test(String(u || '')); }
 
@@ -73,7 +82,7 @@
         var p = of.apply(this, arguments);
         if (ON_BIZ) {
           try {
-            var meta = reqMeta(body);
+            var meta = reqMeta(body); meta.url = String(u && u.url ? u.url : u);
             p.then(function (r) {
               try { if (r && isGraph(r.url || u)) r.clone().text().then(function (t) { scanResp(t, meta); }).catch(function () {}); } catch (e) {}
             }, function () {});
@@ -95,7 +104,7 @@
       try { if (body) scan(String(body)); } catch (e) {}
       if (ON_BIZ) {
         try {
-          var meta = reqMeta(body), x = this;
+          var meta = reqMeta(body), x = this; meta.url = x.__adsmgr_url || null;
           if (isGraph(x.__adsmgr_url)) x.addEventListener('loadend', function () {
             try { if (!x.responseType || x.responseType === 'text') scanResp(x.responseText, meta); } catch (e) {}
           });

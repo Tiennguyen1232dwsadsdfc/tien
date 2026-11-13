@@ -381,8 +381,7 @@ function toggleScanBM() {
   if (!bs.length) { showNotice('Chưa có danh sách BM để quét.', true); return; }
   const missing = bs.filter(b => b.limitSource !== 'scan');
   const ids = (missing.length ? missing : bs).map(b => b.id);
-  const secs = Math.round(ids.length * 9);
-  if (!confirm(`Quét ${ids.length} BM${missing.length && missing.length < bs.length ? ' (chưa có giới hạn)' : ''}?\n\nTiện ích sẽ mở NGẦM lần lượt trang Cài đặt doanh nghiệp của từng BM trong tab nền (không chuyển tab của bạn), đọc "Giới hạn tạo tài khoản quảng cáo" rồi tự đóng. Mỗi BM cách nhau vài giây để không bị Facebook báo spam.\n\nƯớc tính: ~${Math.ceil(secs / 60)} phút. Có thể bấm nút lần nữa để dừng.`)) return;
+  if (!confirm(`Quét ${ids.length} BM${missing.length && missing.length < bs.length ? ' (chưa có giới hạn)' : ''}?\n\nLần đầu tiện ích mở NGẦM 1 trang Cài đặt doanh nghiệp (tab nền, không chuyển tab của bạn) để học cách Facebook lấy "Giới hạn tạo tài khoản quảng cáo"; các BM còn lại được hỏi thẳng bằng request ngầm, không mở trang (~1–2 giây/BM).\n\nCó thể bấm nút lần nữa để dừng.`)) return;
   chrome.runtime.sendMessage({ type: 'scanBM', ids }, () => void chrome.runtime.lastError);
 }
 function onScanProgress(s) {
@@ -392,7 +391,7 @@ function onScanProgress(s) {
   $('scanBmBtn').classList.toggle('primary', SCANNING);
   if (SCANNING) {
     const name = s.current && BM ? ((BM.businesses || []).find(b => b.id === s.current) || {}).name : null;
-    showNotice(`Đang quét giới hạn BM: ${s.done}/${s.total} xong, đọc được ${s.hit}. Đang mở: ${name || s.current || '…'}`);
+    showNotice(`Đang quét giới hạn BM (${s.mode === 'api' ? 'hỏi ngầm, không mở trang' : 'mở ngầm trang Cài đặt'}): ${s.done}/${s.total} xong, đọc được ${s.hit}. Đang xử lý: ${name || s.current || '…'}`);
     return;
   }
   if (s.hit > 0) { showNotice(`Quét xong: đọc được giới hạn tạo TKQC của ${s.hit}/${s.done} BM. Đang cập nhật bảng…`); loadBM(); return; }

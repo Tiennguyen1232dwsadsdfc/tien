@@ -336,16 +336,29 @@ async function bmExtraFields(token, sampleId, reprobe) {
 // Số này chỉ hiện trên trang Cài đặt doanh nghiệp ("Giới hạn tạo tài khoản quảng cáo"), do
 // GraphQL nội bộ trả về. hook.js đọc các phản hồi GraphQL trên trang đó và gửi về đây mọi
 // khóa "*limit*"; khóa nào trông giống giới hạn tạo TKQC thì lưu vào bmLimits[business_id].
-// Toàn bộ khóa thô được ghi vào bmProbeLog để đối chiếu khi chưa đoán đúng tên khóa.
+// Request trả về số đó được lưu lại (bmGraphReq) để hỏi thẳng cho các BM khác mà không cần
+// mở trang. Toàn bộ khóa thô được ghi vào bmProbeLog để đối chiếu khi chưa đoán đúng tên khóa.
 const LIMIT_KEY = /(ad_?account|adaccount).*limit|limit.*(ad_?account|adaccount)|creation_limit/i;
+const PROBE_KEY_RE = /"([A-Za-z_]*(?:limit|restrict|integrity|is_disabled)[A-Za-z_]*)"\s*:\s*(-?\d+(?:\.\d+)?|"(?:[^"\\]|\\.){0,80}"|true|false|null)/g;
+function extractKeys(text) {
+  const keys = [], seen = {}; let m, n = 0;
+  PROBE_KEY_RE.lastIndex = 0;
+  while ((m = PROBE_KEY_RE.exec(String(text || ''))) && n++ < 400) {
+    let v = m[2]; if (v[0] === '"') v = v.slice(1, -1);
+    const sig = m[1] + '=' + v; if (seen[sig]) continue; seen[sig] = 1; keys.push([m[1], v]);
+    if (keys.length >= 80) break;
+  }
+  return keys;
+}
 const SCAN = { stop: false, waiting: {} };
 let PROBE_CHAIN = Promise.resolve();
 function onBmProbe(p, tabId) {
   // tuần tự hoá: nhiều phản hồi GraphQL về cùng lúc -> tránh ghi đè storage lẫn nhau
   PROBE_CHAIN = PROBE_CHAIN.then(() => onBmProbeNow(p, tabId)).catch(() => {});
+  return PROBE_CHAIN;
 }
 async function onBmProbeNow(p, tabId) {
-  if (!p || !Array.isArray(p.keys)) return;
+  if (!p || !Array.isArray(p.keys)) return null;
   const bid = p.bid || p.vbid || null;
   const { bmLimits = {}, bmProbeLog = [] } = await chrome.storage.local.get(['bmLimits', 'bmProbeLog']);
   let found = null, restricted = null;
@@ -363,42 +376,94 @@ async function onBmProbeNow(p, tabId) {
     cur.at = Date.now();
     bmLimits[bid] = cur; upd.bmLimits = bmLimits;
   }
+  // Học request: chỉ giữ khi body có chứa business_id (để thay ID cho BM khác)
+  if (p.req && p.req.body && bid && found) {
+    try {
+      const vars = new URLSearchParams(p.req.body).get('variables') || '';
+      if (vars.includes(bid)) upd.bmGraphReq = { url: p.req.url || null, body: p.req.body, bid, friendly: p.friendly || null, at: Date.now() };
+    } catch (_) {}
+  }
   await chrome.storage.local.set(upd);
   if (bid && found && SCAN.waiting[bid]) SCAN.waiting[bid]();
   else if (tabId != null && found && SCAN.waiting['tab:' + tabId]) SCAN.waiting['tab:' + tabId]();
+  return found;
 }
-// Quét lần lượt từng BM: mở ngầm trang Cài đặt doanh nghiệp (tab nền, không chuyển tab),
-// chờ hook.js bắt được giới hạn (hoặc hết giờ) rồi đóng tab, nghỉ ngẫu nhiên 3–6s giữa các BM.
+
+// Mở ngầm trang Cài đặt doanh nghiệp của 1 BM (tab nền), chờ hook.js bắt được giới hạn
+// (hoặc hết giờ). keep=true: giữ tab lại (dùng làm "cầu" gửi request cho BM khác).
+function openBmTab(id, keep) {
+  const url = `https://business.facebook.com/latest/settings/business_info?business_id=${encodeURIComponent(id)}`;
+  return new Promise(resolve => {
+    chrome.tabs.create({ url, active: false }, tab => {
+      const tid = tab && tab.id; let fin = false;
+      const finish = () => {
+        if (fin) return; fin = true;
+        delete SCAN.waiting[id]; if (tid != null) delete SCAN.waiting['tab:' + tid];
+        setTimeout(() => {
+          if (!keep && tid != null) chrome.tabs.remove(tid, () => void chrome.runtime.lastError);
+          resolve(tid);
+        }, 1500);
+      };
+      SCAN.waiting[id] = finish; if (tid != null) SCAN.waiting['tab:' + tid] = finish;
+      setTimeout(finish, 30000);
+    });
+  });
+}
+// Hỏi giới hạn của 1 BM bằng cách gửi lại request đã học qua tab Facebook `tid`.
+async function replayBm(tid, req, id) {
+  const p = new URLSearchParams(req.body);
+  const vars = p.get('variables') || '';
+  p.set('variables', vars.split(req.bid).join(id));
+  const res = await new Promise(r => chrome.tabs.sendMessage(tid, { type: 'bmFetch', url: req.url, body: p.toString() }, x => { void chrome.runtime.lastError; r(x || null); }));
+  if (!res || !res.ok) throw new Error(res && res.error || 'no response');
+  if (/"error"\s*:\s*\d|login_required|"errorSummary"/.test(res.text.slice(0, 400)) && !/limit/.test(res.text)) throw new Error('facebook error');
+  // Phản hồi phải nói về đúng BM được hỏi (chứa ID mới), tránh gán nhầm số của BM mẫu cho BM khác
+  if (id !== req.bid && !res.text.includes(id) && res.text.includes(req.bid)) throw new Error('wrong business');
+  const keys = extractKeys(res.text);
+  const found = await onBmProbe({ bid: id, keys, friendly: 'replay:' + (req.friendly || ''), page: 'replay' });
+  return found;
+}
+// Quét giới hạn tạo TKQC: lần đầu mở ngầm 1 trang để học request; các BM còn lại hỏi thẳng
+// qua request ngầm (nhanh, không mở trang). Nếu không học được thì mở từng trang như cũ.
 async function scanBM(ids) {
   if (SCAN.running) return;
   SCAN.running = true; SCAN.stop = false;
-  const total = ids.length; let done = 0, hit = 0;
-  const report = (current, finished) => chrome.storage.local.set({ bmScan: { running: !finished, total, done, hit, current: current || null, at: Date.now() } });
+  const total = ids.length; let done = 0, hit = 0, mode = 'tab', bridge = null, bridgeFor = null, fails = 0;
+  const report = (current, finished) => chrome.storage.local.set({ bmScan: { running: !finished, total, done, hit, mode, current: current || null, at: Date.now() } });
+  const getReq = async () => (await chrome.storage.local.get('bmGraphReq')).bmGraphReq || null;
+  const limitOf = async id => ((await chrome.storage.local.get('bmLimits')).bmLimits || {})[id];
   await report(null, false);
   try {
+    let req = await getReq();
     for (const id of ids) {
       if (SCAN.stop) break;
       await report(id, false);
-      const before = ((await chrome.storage.local.get('bmLimits')).bmLimits || {})[id];
-      const url = `https://business.facebook.com/latest/settings/business_info?business_id=${encodeURIComponent(id)}`;
-      await new Promise(resolve => {
-        chrome.tabs.create({ url, active: false }, tab => {
-          const tid = tab && tab.id; let fin = false;
-          const finish = () => {
-            if (fin) return; fin = true;
-            delete SCAN.waiting[id]; if (tid != null) delete SCAN.waiting['tab:' + tid];
-            setTimeout(() => { if (tid != null) chrome.tabs.remove(tid, () => void chrome.runtime.lastError); resolve(); }, 1500);
-          };
-          SCAN.waiting[id] = finish; if (tid != null) SCAN.waiting['tab:' + tid] = finish;
-          setTimeout(finish, 30000);
-        });
-      });
-      const after = ((await chrome.storage.local.get('bmLimits')).bmLimits || {})[id];
+      const before = await limitOf(id);
+      if (req && !bridge) {
+        // dùng tab Facebook đang mở làm cầu; không có thì mở ngầm 1 tab (BM này) và giữ lại
+        const tabs = await new Promise(r => chrome.tabs.query({ url: 'https://business.facebook.com/*' }, r));
+        if (tabs && tabs.length) bridge = tabs[0].id;
+        else { bridge = await openBmTab(id, true); bridgeFor = id; }
+      }
+      let ok = !!(bridgeFor === id && (await limitOf(id))); // trang cầu vừa mở đã đọc được số của chính BM đó
+      if (!ok && req && bridge) {
+        mode = 'api';
+        try { ok = !!(await replayBm(bridge, req, id)); fails = ok ? 0 : fails + 1; }
+        catch (_) { fails++; }
+        if (fails >= 3) { req = null; mode = 'tab'; } // request hết hạn/không chạy -> quay về mở trang
+      }
+      if (!ok && !req) {
+        mode = 'tab';
+        await openBmTab(id, false);
+        if (!req) req = await getReq(); // trang vừa mở có thể đã dạy được request
+      }
+      const after = await limitOf(id);
       if (after && after.limit != null && (!before || before.at !== after.at)) hit++;
       done++;
-      if (!SCAN.stop && done < total) await sleep(rnd(3000, 6000));
+      if (!SCAN.stop && done < total) await sleep(mode === 'api' ? rnd(700, 1500) : rnd(3000, 6000));
     }
   } finally {
+    if (bridgeFor != null && bridge != null) chrome.tabs.remove(bridge, () => void chrome.runtime.lastError);
     SCAN.running = false;
     await report(null, true);
   }
