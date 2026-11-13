@@ -32,6 +32,13 @@
       "world": "ISOLATED"
     },
     {
+      "matches": ["https://business.facebook.com/*"],
+      "js": ["content-scripts/bizinfo.js"],
+      "run_at": "document_idle",
+      "all_frames": false,
+      "world": "ISOLATED"
+    },
+    {
       "matches": ["https://*.facebook.com/*"],
       "js": ["content-scripts/invoice.js"],
       "run_at": "document_idle",
