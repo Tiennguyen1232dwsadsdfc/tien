@@ -34,7 +34,15 @@
       var mm = rest.match(/(?:^|[^\d.,])(\d{1,6})(?![\d.,])/);
       if (mm) { report(Number(mm[1])); return; }
     }
-    // 2) Dự phòng: tìm theo nhãn
+    // 2) XPath của ô số trên trang business_info (ghi nhận 11/2026) — dễ đổi khi FB sửa giao diện
+    try {
+      var XP = '/html/body/div[1]/div/div[1]/div/div[2]/div/div/div[1]/span/div/div/div[2]/div[1]/div/div/div[2]/div/span/div/div/div/div/div/div/div[2]/div[2]/div/span/div/span/div/div/div/div[1]/div[2]/span/div[8]/span/div/div/div[2]';
+      var xe = document.evaluate(XP, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+      var xt = xe ? (xe.textContent || '').trim() : '';
+      var xp = xe && xe.parentElement ? (xe.parentElement.textContent || '') : '';
+      if (/^\d{1,6}$/.test(xt) && LABEL.test(xp)) { report(Number(xt)); return; }
+    } catch (e) {}
+    // 3) Dự phòng: tìm theo nhãn
     var all = document.querySelectorAll('span,div,dt,label,h1,h2,h3,h4,p');
     for (var i = 0; i < all.length; i++) {
       var el = all[i];
