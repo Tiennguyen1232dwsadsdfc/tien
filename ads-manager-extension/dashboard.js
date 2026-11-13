@@ -548,7 +548,9 @@ const BM_COLS = [
   { key: 'bmType', label: 'Loại BM', w: 100, val: b => b.limit || null, cell: b => b.bmType ? `<b>${esc(b.bmType)}</b>` : dash },
   { key: 'role', label: 'Quyền sở hữu', w: 130, cell: b => esc(b.role) },
   { key: 'limit', label: 'TKQC / Giới hạn', w: 130, num: true, val: b => b.limit || null,
-    cell: b => b.limit ? `${b.slAdaccount == null ? '?' : b.slAdaccount} <span class="muted">/ ${b.limit}</span>` : dash },
+    cell: b => b.limit ? `${b.slAdaccount == null ? '?' : b.slAdaccount} <span class="muted">/ ${b.limit}</span>`
+      : (b.canCreate === false ? '<span class="muted" title="Facebook báo BM này hiện không tạo thêm được TKQC (đã hết hạn mức hoặc chưa đủ điều kiện)">Hết hạn mức</span>'
+        : (b.canCreate === true ? '<span class="verified" title="BM này vẫn tạo thêm được TKQC">Còn tạo được</span>' : dash)) },
   { key: 'verified', label: 'Verified', w: 130, cell: b => `<span class="${b.verified === 'VERIFIED' ? 'verified' : (b.verified === 'REJECTED' ? 'low' : 'muted')}">${esc(b.verified)}</span>` },
   { key: 'created', label: 'Ngày tạo', w: 110, cell: b => shortDate(b.created), val: b => b.created ? Date.parse(b.created) : null },
   { key: 'slAdmin', label: 'SL Admin', w: 95, num: true, cell: b => b.slAdmin == null ? '' : b.slAdmin },

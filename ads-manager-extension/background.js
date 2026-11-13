@@ -358,11 +358,14 @@ async function loadBM(reprobe) {
     const num = v => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
     const businesses = raw.map(b => {
       const limit = num(b.ad_account_creation_limit) ?? num(b.adaccount_creation_limit) ?? num(b.ad_account_limit) ?? num(b.ad_accounts_limit);
+      // "Hạn chế" CHỈ khi Facebook nói rõ BM bị hạn chế/vô hiệu. can_create_ad_account=false
+      // không phải hạn chế: thường chỉ là đã dùng hết hạn mức tạo TKQC.
       let status = null;
-      if (b.is_disabled_for_integrity_reasons === true || b.is_restricted === true || b.can_create_ad_account === false
-        || (b.restriction_status && !/^(none|unrestricted|ok)$/i.test(String(b.restriction_status)))) status = 'Restricted';
-      else if ('is_disabled_for_integrity_reasons' in b || 'is_restricted' in b || 'restriction_status' in b || 'can_create_ad_account' in b || 'business_status' in b || 'status' in b) status = 'Live';
+      if (b.is_disabled_for_integrity_reasons === true || b.is_restricted === true
+        || (b.restriction_status && !/^(none|unrestricted|ok|active)$/i.test(String(b.restriction_status)))) status = 'Restricted';
+      else if ('is_disabled_for_integrity_reasons' in b || 'is_restricted' in b || 'restriction_status' in b || 'business_status' in b || 'status' in b) status = 'Live';
       const rawStatus = b.restriction_status || b.business_status || b.status || null;
+      const canCreate = typeof b.can_create_ad_account === 'boolean' ? b.can_create_ad_account : null;
       const role = roles[b.id] || null;
       return {
         id: b.id,
@@ -373,7 +376,7 @@ async function loadBM(reprobe) {
         slAdaccount: b.owned_ad_accounts && b.owned_ad_accounts.summary ? b.owned_ad_accounts.summary.total_count : null,
         role: role ? (ROLE_VI[role] || role) : 'Quản trị viên',
         limit, bmType: limit ? 'BM' + limit : null,
-        status, rawStatus,
+        status, rawStatus, canCreate,
         primaryPage: b.primary_page && b.primary_page.name ? b.primary_page.name : null,
         twoFactor: b.two_factor_type || null,
         link: b.link || null
