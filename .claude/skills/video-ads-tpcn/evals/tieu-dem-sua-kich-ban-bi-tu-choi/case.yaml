@@ -1,0 +1,13 @@
+schema_version: "1.1"
+name: tieu-dem-sua-kich-ban-bi-tu-choi
+expected_outcome: |
+  Chỉ ra từng câu có vấn đề kèm lý do cụ thể, không viết lại từ đầu mà không giải
+  thích. Phải bắt được: hỏi trực tiếp người xem có bệnh (chính sách thuộc tính sức
+  khoẻ cá nhân của Meta/TikTok - đây là lý do bị từ chối), dùng danh nghĩa bác sĩ,
+  từ "đặc trị", "thay thế thuốc tây", cam kết khỏi và hoàn tiền 100%, thư cảm ơn
+  của người bệnh kèm câu "đã khỏi bệnh", và "số 1 Việt Nam".
+  Đưa câu viết lại cho từng vi phạm, vẫn giữ sức thuyết phục.
+  Phát hiện thiếu khuyến cáo bắt buộc và thiếu tên đơn vị chịu trách nhiệm.
+  Sửa cả phần dựng: cắt 1 giây/cảnh quá nhanh với người trên 55 (nên 2.5-4 giây),
+  chữ nhỏ ở góc là sai (cần tối thiểu 90px, có nền chắn, tránh vùng bị che), và
+  CTA "inbox shop / link in bio" không phù hợp với người cao tuổi.

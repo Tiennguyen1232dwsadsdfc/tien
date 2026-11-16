@@ -1,0 +1,11 @@
+schema_version: "1.1"
+name: xuong-khop-du-thong-tin
+expected_outcome: |
+  Kịch bản 45s dọc 9:16 đầy đủ theo mẫu của skill: 3 hook khác nhau về cách mở,
+  bảng timeline từng cảnh có prompt ảnh tiếng Anh, lời đọc, chữ trên màn hình,
+  chỉ dẫn voiceover, thông số dựng hình, và checklist tuân thủ.
+  Hook viết ngôi thứ ba (không hỏi trực tiếp người xem có bệnh). Công dụng nêu
+  đúng theo công bố người dùng đưa, không thêm. Có khuyến cáo "Thực phẩm này
+  không phải là thuốc và không có tác dụng thay thế thuốc chữa bệnh" đọc và hiện
+  tối thiểu 3 giây. Không có từ chữa/trị/khỏi/dứt điểm. CTA là để lại số điện
+  thoại, không dùng link in bio hay QR.
