@@ -82,6 +82,39 @@ export async function runTts({ project, config, provider, voiceId, force = false
 
   const existing = new Map((project.audio || []).map((a) => [a.id, a]));
   const lines = project.script.lines;
+
+  // File audio nguoi dung tu dat san vao thu muc audio/ duoc nhan lam ket qua va
+  // khong doc lai. Dung khi mot kich ban can nhieu giong: thu am rieng vai cau
+  // bang giong khac roi dat vao day, cac cau con lai de tool doc.
+  const adopted = [];
+  if (!force) {
+    for (const line of lines) {
+      const prev = existing.get(line.id);
+      if (prev?.file && fs.existsSync(prev.file) && prev.text === line.text) continue;
+      const found = fs
+        .readdirSync(project.paths.audio)
+        .find((name) => name.replace(/\.[^.]+$/, '') === line.id);
+      if (!found) continue;
+      const file = path.join(project.paths.audio, found);
+      const duration = audioDuration(fs.readFileSync(file), path.extname(file));
+      if (!duration) {
+        log.warn(`${line.id}: khong doc duoc do dai file ${found} — bo qua, se doc lai cau nay.`);
+        continue;
+      }
+      existing.set(line.id, {
+        id: line.id,
+        text: line.text,
+        file,
+        duration,
+        provider: 'manual',
+        voiceId: null,
+      });
+      adopted.push(line.id);
+    }
+  }
+  if (adopted.length) {
+    log.ok(`Dung ${adopted.length} file giong doc ban tu dat san: ${adopted.join(', ')}`);
+  }
   const todo = lines.filter((line) => {
     if (force) return true;
     const prev = existing.get(line.id);
@@ -115,12 +148,18 @@ export async function runTts({ project, config, provider, voiceId, force = false
     bar.done();
   }
 
-  // Cau nao co file nhung thieu do dai (vi du file cu) thi do lai tu chinh file.
+  // Do lai do dai tu chinh file tren dia cho moi cau, khong tin so da luu.
+  // Can thiet vi nguoi dung co the ghi de mot file bang ban thu am khac dai ngan
+  // khac — giu so cu se lam ca timeline lech ma khong co dau hieu gi.
   for (const line of lines) {
     const entry = existing.get(line.id);
-    if (entry && !(entry.duration > 0) && fs.existsSync(entry.file)) {
-      entry.duration = audioDuration(fs.readFileSync(entry.file), path.extname(entry.file));
+    if (!entry?.file || !fs.existsSync(entry.file)) continue;
+    const measured = audioDuration(fs.readFileSync(entry.file), path.extname(entry.file));
+    if (!measured) continue;
+    if (entry.duration > 0 && Math.abs(measured - entry.duration) > 0.05) {
+      log.info(`${line.id}: file doi do dai ${entry.duration.toFixed(2)}s -> ${measured.toFixed(2)}s, da cap nhat timeline.`);
     }
+    entry.duration = measured;
   }
 
   project.audio = lines.map((line) => existing.get(line.id)).filter(Boolean);

@@ -150,6 +150,23 @@ Audio là "sự thật", ảnh chạy theo audio:
 
 Xem bảng timeline: `node bin/autostory.js timeline --name <ten>`.
 
+## Kịch bản cần nhiều giọng
+
+Tool dùng một giọng cho cả project. Khi kịch bản cần hai giọng (ví dụ nhân vật kể phần đầu,
+giọng dẫn nói phần sau), làm thế này:
+
+1. Chạy `tts` với giọng chính — được tất cả các câu bằng giọng đó.
+2. Thu riêng những câu cần giọng khác, lưu vào `audio/` đúng id câu (`L0001.mp3`…),
+   ghi đè file cũ.
+3. Chạy lại `tts` — tool nhận file bạn đặt và không đọc lại.
+
+Mỗi lần chạy `tts`, độ dài từng câu được **đo lại từ chính file trên đĩa**, nên ghi đè bằng
+bản thu dài ngắn khác thì timeline tự khớp lại:
+
+```
+› L0001: file doi do dai 2.76s -> 15.07s, da cap nhat timeline.
+```
+
 ## Giữ lại ảnh bạn tự làm
 
 Có những cảnh không được để AI vẽ — ví dụ cảnh hộp sản phẩm: AI sẽ bịa chữ trên nhãn, bịa
@@ -197,7 +214,7 @@ thuộc định dạng draft.
 autostory-projects/<tên>/
   project.json      trạng thái: kịch bản, prompt, audio, ảnh (nguồn để chạy tiếp)
   script.txt        bản copy kịch bản gốc
-  audio/            giọng đọc từng câu
+  audio/            giọng đọc từng câu (đặt file của bạn vào đây để thay)
   images/           ảnh minh hoạ
   subtitles.srt     phụ đề
   overlay.md        chữ trên màn hình cần dán tay, kèm mốc thời gian

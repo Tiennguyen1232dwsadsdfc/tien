@@ -1,0 +1,33 @@
+# Viên tiểu đêm Bổ Thận Kaimen — 45s dọc 9:16 — nạp vào tools/autostory
+# Mỗi dòng: lời đọc || prompt ảnh (tiếng Anh) || chữ hiện trên màn hình
+#
+# HAI GIỌNG: L0001-L0005 là nhân vật (nam Bắc 60-70, trầm, mệt).
+#            L0006-L0012 là giọng dẫn (nam Bắc 45-55, điềm đạm).
+# Autostory chỉ dùng một giọng cho cả project, nên:
+#   1. Chạy tts với giọng dẫn  -> được L0006-L0012 đúng giọng
+#   2. Thu riêng 5 câu đầu bằng giọng nhân vật, lưu thành audio/L0001.mp3 ... L0005.mp3
+#   3. Chạy lại tts -> tool nhận 5 file đó, không đọc lại
+#
+# BỐN DÒNG CUỐI (L0009-L0012) phải GHÉP ẢNH LỌ THẬT vào nền AI.
+@title: Bo Than Kaimen 45s
+@style: photorealistic, vertical 9:16, modest rural northern Vietnamese home, ordinary clothing, no makeup, documentary feel, dark green and warm lamp tones, no text, no watermark, no doctor, no white coat, no stethoscope, no hospital, no clinic, no medical equipment, no x-ray, no anatomical diagram, no urinary tract diagram, no before-after split, no young model, no luxury interior
+
+== Nhân vật kể cái khó ==
+Đêm nào tôi cũng dậy ba bốn lần. || Vietnamese man 66, short grey hair, thin face, worn pyjama shirt, sitting on the edge of a bed at night, a dim yellow bedside lamp on, dark bedroom || ĐÊM NÀO CŨNG DẬY / ba bốn lần
+Cứ chợp mắt được một lúc là lại phải dậy. || the same Vietnamese man 66 walking slowly down a dark hallway at night towards a lit bathroom door, slippers, one hand on the wall, warm light spilling across the floor || chợp mắt một lúc lại phải dậy
+Sáng ra người rã rời, làm gì cũng không nổi. || the same Vietnamese man 66 sitting at a table in the morning, a bowl of rice untouched, eyes heavy, pale daylight through a window, shoulders slumped || sáng ra rã rời
+Mùa lạnh đi trong tối, tôi sợ nhất là trượt chân. || close-up of an elderly man's feet in slippers on a wet tiled floor at night, dim light, a doorway edge visible, cold atmosphere, no face || mùa lạnh · sợ trượt chân
+Tôi chỉ mong ngủ được một giấc cho tới sáng. || the same Vietnamese man 66 sitting on a wooden chair in a sunlit courtyard in the afternoon, looking into the distance, calm but tired, a tea cup beside him || chỉ mong ngủ một giấc tới sáng
+
+== Giọng dẫn ==
+Nhiều bác ngoài năm mươi gặp đúng cảnh này. || wide shot of a quiet northern Vietnamese village lane at dusk, two elderly men sitting on a low wall talking, warm evening light, faces not in focus || nhiều bác ngoài 50 gặp cảnh này
+Tuổi càng cao, chức năng thận càng kém đi. || a simple calendar on a wall next to a window, soft daylight, clean composition, no legible text on the calendar || tuổi càng cao · thận càng kém
+Dậy đêm nhiều kèm tiểu buốt thì nên đi khám. || hands of an elderly Vietnamese person holding a small paper health booklet, sitting on a plastic chair in a sunny courtyard || kèm tiểu buốt → đi khám
+
+== Sản phẩm ==
+Viên tiểu đêm Bổ Thận Kaimen, từ kim anh tử, thỏ ty tử. || GHEP ANH LO THAT - background only: a wooden table by a window in the early evening, a glass of water, warm lamp light, large empty space in the centre of the frame for compositing a product bottle, shallow depth of field || BỔ THẬN KAIMEN / kim anh tử · thỏ ty tử
+Giúp bổ thận, hỗ trợ giảm triệu chứng tiểu đêm, tiểu nhiều lần. || GHEP ANH LO THAT - background only: the same table seen slightly closer, warm evening light, empty space in the upper centre for the bottle and clear space in the lower third for a caption || Giúp bổ thận, hỗ trợ giảm triệu chứng tiểu đêm, tiểu nhiều lần / Kết quả có thể khác nhau ở mỗi người
+
+== Chốt ==
+Bình luận chữ ĐÊM, sẽ có người gọi lại tư vấn. || GHEP ANH LO THAT - background only: plain warm dark-green backdrop, soft even lighting, empty space in the upper half for the bottle, lower half clear for text || BÌNH LUẬN: ĐÊM / Lọ 30 viên · nhà máy đạt chuẩn GMP / gọi lại tư vấn miễn phí
+Thực phẩm này không phải là thuốc và không có tác dụng thay thế thuốc chữa bệnh. || GHEP ANH LO THAT - background only: plain warm dark-green backdrop, completely even lighting, bottle space in the upper third, entire lower half empty for a long caption || Thực phẩm này không phải là thuốc và không có tác dụng thay thế thuốc chữa bệnh. / [ĐƠN VỊ CHỊU TRÁCH NHIỆM — cần điền]
