@@ -189,7 +189,29 @@ Bước 3. Giữ giọng điệu của họ — đó là kịch bản của họ
 ## Nếu muốn tự động hoá phần dựng
 
 Repo này có tool `tools/autostory` sinh draft CapCut từ file kịch bản (giọng đọc AI + ảnh
-AI + hiệu ứng zoom/pan khớp timeline). Cột "Lời đọc" trong bảng trên chuyển thẳng được
-sang định dạng kịch bản của tool đó: mỗi dòng một câu thoại, prompt ảnh đặt sau dấu `||`.
-Khi người dùng muốn dựng tự động, xuất thêm một file `.txt` theo định dạng ấy bên cạnh
-kịch bản. Đừng tự chạy tool trừ khi họ yêu cầu.
+AI + hiệu ứng zoom/pan khớp timeline). Bảng kịch bản ở Bước 5 chuyển thẳng được sang định
+dạng của tool, **ba trường cách nhau bằng `||`**:
+
+```
+Lời đọc một câu. || prompt ảnh tiếng Anh || CHỮ HIỆN TRÊN MÀN HÌNH
+```
+
+Một câu một dòng, vì mỗi dòng là một lần đọc và ít nhất một ảnh. Đặt `@title` và `@style`
+ở đầu file; `@style` nên chứa luôn phần loại trừ (no doctor, no white coat, no clinic…) để
+mọi ảnh đều bị chặn.
+
+Chỉ xuất file này khi người dùng **nói rõ muốn dựng tự động**. Nói "làm từ ảnh AI + voice
+AI" là mô tả nguyên liệu, không phải yêu cầu dùng tool — xuất thừa một file định dạng lạ
+chỉ làm họ phải đoán xem có cần nó không. Đừng tự chạy tool trừ khi họ yêu cầu.
+
+Hai điều phải nói với người dùng khi giao file này, vì nếu không họ sẽ ship video thiếu:
+
+1. **Tool không dựng lớp chữ.** Nó xuất `overlay.md` kèm mốc thời gian thật để dán tay
+   trong CapCut. Khuyến cáo bắt buộc và CTA đều ở lớp chữ, nên draft chưa đặt chữ là draft
+   chưa chạy được.
+2. **Cảnh hộp sản phẩm phải ghép ảnh thật.** Tự ghép rồi đặt file vào `images/` đúng tên id
+   cảnh trước khi chạy bước `images` — tool sẽ nhận và không sinh lại.
+
+Độ dài thật do giọng đọc quyết định, không theo số giây bạn tính. Sau bước `tts`, chạy
+`autostory timeline` để biết độ dài thật rồi cắt câu theo thứ tự ưu tiên đã ghi trong kịch
+bản — không bao giờ cắt câu khuyến cáo và câu công dụng.

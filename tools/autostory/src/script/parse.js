@@ -11,6 +11,12 @@
  *   == Ten canh ==            -> moc chia canh
  *   Cau thoai binh thuong.
  *   Cau thoai. || goi y anh cho cau nay
+ *   Cau thoai. || goi y anh || CHU HIEN TREN MAN HINH
+ *
+ * Truong thu ba la lop chu hien tren video. Autostory khong dung duoc chu vao
+ * draft CapCut (dinh dang text cua CapCut doi theo phien ban), nen no duoc xuat
+ * ra file overlay.md kem moc thoi gian de dan vao CapCut bang tay. Khong co
+ * truong nay thi khuyen cao bat buoc va CTA se bi mat khi dung tu dong.
  */
 
 const DIRECTIVE = /^@([a-zA-Z_][\w-]*)\s*[:=]\s*(.*)$/;
@@ -89,10 +95,11 @@ export function parseScript(raw, { maxChars = 220, splitLongLines = true } = {})
       continue;
     }
 
-    const [textPart, hintPart] = line.split(HINT_SEP);
+    const [textPart, hintPart, overlayPart] = line.split(HINT_SEP);
     const text = (textPart || '').trim();
     if (!text) continue;
     const imageHint = (hintPart || '').trim();
+    const overlay = (overlayPart || '').trim();
 
     if (sceneIndex < 0) pushScene('');
 
@@ -105,8 +112,9 @@ export function parseScript(raw, { maxChars = 220, splitLongLines = true } = {})
         sceneIndex,
         sceneTitle,
         text: piece,
-        // Goi y anh chi gan cho manh dau tien de tranh lap prompt giong nhau.
+        // Goi y anh va lop chu chi gan cho manh dau tien de tranh lap lai.
         imageHint: pieceIndex === 0 ? imageHint : '',
+        overlay: pieceIndex === 0 ? overlay : '',
       });
       scenes[sceneIndex].lineIds.push(id);
     });
@@ -124,6 +132,7 @@ export function parseScript(raw, { maxChars = 220, splitLongLines = true } = {})
       lineCount: lines.length,
       sceneCount: scenes.length,
       charCount: lines.reduce((sum, l) => sum + l.text.length, 0),
+      overlayCount: lines.filter((l) => l.overlay).length,
     },
   };
 }

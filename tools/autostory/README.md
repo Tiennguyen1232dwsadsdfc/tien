@@ -73,6 +73,12 @@ Cuối con phố Hàng Mã có một tiệm đèn lồng nhỏ. || tiệm đèn 
 - `@title` `@style` `@voice` — thông tin chung.
 - `== Tên cảnh ==` — mốc chia cảnh (dùng `## Tên cảnh` cũng được).
 - `|| ...` — gợi ý ảnh cho riêng câu đó; không có thì tool tự nghĩ từ nội dung câu.
+- `|| ... || ...` — trường thứ ba là **chữ hiện trên màn hình** cho câu đó.
+
+Chữ trên màn hình không được ghi vào draft CapCut — định dạng material text của CapCut đổi
+theo phiên bản nên ghi vào rất dễ làm hỏng project. Thay vào đó tool xuất `overlay.md` kèm
+mốc thời gian thật đã khớp giọng đọc, để bạn dán tay trong CapCut. Với video quảng cáo thì
+đây là phần bắt buộc phải làm: khuyến cáo và lời kêu gọi hành động đều nằm ở lớp chữ.
 
 Xem file mẫu: `examples/kich-ban-mau.txt`.
 
@@ -144,6 +150,21 @@ Audio là "sự thật", ảnh chạy theo audio:
 
 Xem bảng timeline: `node bin/autostory.js timeline --name <ten>`.
 
+## Giữ lại ảnh bạn tự làm
+
+Có những cảnh không được để AI vẽ — ví dụ cảnh hộp sản phẩm: AI sẽ bịa chữ trên nhãn, bịa
+logo, bịa dung tích. Với những cảnh đó, tự ghép ảnh thật rồi đặt file vào thư mục
+`images/` của project, đặt tên đúng id của cảnh (`L0012.png`, `L0013.png`…) **trước khi**
+chạy bước `images`. Tool nhận ảnh có sẵn và không sinh lại:
+
+```
+✓ Dung 4 anh ban tu dat san: L0012, L0013, L0014, L0015
+▸ Sinh anh (gemini): can 11/15 anh.
+```
+
+Xem id của từng cảnh bằng `autostory timeline --name <tên>`. Chạy lại lệnh `images` bao
+nhiêu lần cũng không ghi đè những ảnh đó — chỉ `--force` mới sinh lại tất cả.
+
 ## Đưa draft vào CapCut
 
 Đặt `CAPCUT_DRAFT_DIR` trong `.env` trỏ tới thư mục draft của CapCut trên máy bạn:
@@ -179,6 +200,7 @@ autostory-projects/<tên>/
   audio/            giọng đọc từng câu
   images/           ảnh minh hoạ
   subtitles.srt     phụ đề
+  overlay.md        chữ trên màn hình cần dán tay, kèm mốc thời gian
   timeline.txt      bảng timeline để đối chiếu
   capcut-draft/     draft (khi chưa đặt CAPCUT_DRAFT_DIR)
 ```
@@ -215,3 +237,7 @@ Test không gọi API nào, dùng provider `mock` và `placeholder`.
 - **Whisk** phụ thuộc giao diện web, sẽ hỏng khi Google đổi UI — xem phần selector ở trên.
 - Tool **không tự render video**; nó dựng sẵn timeline để bạn xem lại, sửa và export trong
   CapCut. Đây là cố ý: bước cuối nên do người quyết định.
+- Tool **không dựng lớp chữ** vào draft, chỉ xuất `overlay.md` để dán tay. Với video quảng
+  cáo, đừng coi draft là xong khi chưa đặt lớp chữ — khuyến cáo bắt buộc nằm ở đó.
+- Độ dài video do giọng đọc thật quyết định, không theo con số bạn tính trên giấy. Chạy
+  `autostory timeline` sau bước `tts` để biết độ dài thật rồi cắt bớt câu nếu cần.

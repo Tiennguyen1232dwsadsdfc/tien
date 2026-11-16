@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildTimeline, toSrt } from '../src/timeline.js';
+import { buildTimeline, toSrt, toOverlayPlan } from '../src/timeline.js';
 import { getConfig } from '../src/config.js';
 
 const config = getConfig({ maxImageSeconds: 8, minImageSeconds: 2.5, lineGapSeconds: 0.25 });
@@ -70,4 +70,25 @@ test('srt dung dinh dang thoi gian', () => {
   const srt = toSrt(t.audioSegments);
   assert.match(srt, /^1\n00:00:00,000 --> 00:00:02,000\nMot\n/);
   assert.match(srt, /00:00:02,250 --> 00:00:04,250/);
+});
+
+test('lop chu duoc mang sang audioSegments', () => {
+  const withOverlay = lines.map((l, i) => ({ ...l, overlay: i === 1 ? 'CHU HIEN' : '' }));
+  const t = buildTimeline({ lines: withOverlay, audio: lines.map((l) => ({ id: l.id, duration: 3 })), config });
+  assert.equal(t.audioSegments[1].overlay, 'CHU HIEN');
+  assert.equal(t.audioSegments[0].overlay, '');
+});
+
+test('ke hoach lop chu co moc thoi gian that', () => {
+  const withOverlay = lines.map((l, i) => ({ ...l, overlay: i === 1 ? 'KHUYEN CAO' : '' }));
+  const t = buildTimeline({ lines: withOverlay, audio: lines.map((l) => ({ id: l.id, duration: 4 })), config });
+  const plan = toOverlayPlan(t.audioSegments, 30);
+  assert.match(plan, /KHUYEN CAO/);
+  assert.match(plan, /00:00:04:07/);  // bat dau cau 2 = 4 + 0.25 gap
+  assert.doesNotMatch(plan, /^\| 00:00:00:00/m);  // cau khong co chu thi khong co dong
+});
+
+test('khong co lop chu nao thi noi ro', () => {
+  const t = buildTimeline({ lines, audio: lines.map((l) => ({ id: l.id, duration: 2 })), config });
+  assert.match(toOverlayPlan(t.audioSegments), /khong khai bao lop chu nao/);
 });

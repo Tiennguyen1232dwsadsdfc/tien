@@ -4,7 +4,7 @@ import { parseScript } from './script/parse.js';
 import { createTts } from './tts/index.js';
 import { createImageProvider } from './images/index.js';
 import { buildStoryBible, generateImagePrompts, fallbackPrompts } from './prompt/imagePrompts.js';
-import { buildTimeline, toSrt, toTimelineReport } from './timeline.js';
+import { buildTimeline, toSrt, toTimelineReport, toOverlayPlan } from './timeline.js';
 import { buildDraft, writeDraftFolder, learnTemplate } from './capcut/draft.js';
 import { audioDuration } from './util/audio.js';
 import { ensureDir, readJson, writeJson, writeFileSafe, slugify } from './util/fs.js';
@@ -29,6 +29,7 @@ export function projectPaths(config, name) {
     audio: path.join(root, 'audio'),
     images: path.join(root, 'images'),
     srt: path.join(root, 'subtitles.srt'),
+    overlay: path.join(root, 'overlay.md'),
     timelineTxt: path.join(root, 'timeline.txt'),
     draftFallback: path.join(root, 'capcut-draft'),
   };
@@ -173,6 +174,34 @@ export async function runImages({ project, config, provider, force = false }) {
   const imageProvider = createImageProvider(config, provider);
   const have = new Map((project.images || []).map((img) => [img.imageId, img]));
 
+  // Anh nguoi dung tu dat san vao thu muc images (vi du canh san pham phai ghep
+  // anh hop that) duoc nhan lam ket qua va khong sinh lai. Day la cach giu cac
+  // canh lam tay khi chay lai pipeline.
+  const adopted = [];
+  if (!force) {
+    for (const seg of timeline.imageSegments) {
+      if (have.get(seg.imageId)?.file && fs.existsSync(have.get(seg.imageId).file)) continue;
+      const found = fs
+        .readdirSync(project.paths.images)
+        .find((name) => name.replace(/\.[^.]+$/, '') === seg.imageId);
+      if (!found) continue;
+      const file = path.join(project.paths.images, found);
+      have.set(seg.imageId, {
+        imageId: seg.imageId,
+        lineId: seg.lineId,
+        file,
+        width: config.width,
+        height: config.height,
+        prompt: seg.prompt,
+        provider: 'manual',
+      });
+      adopted.push(seg.imageId);
+    }
+  }
+  if (adopted.length) {
+    log.ok(`Dung ${adopted.length} anh ban tu dat san: ${adopted.join(', ')}`);
+  }
+
   const todo = timeline.imageSegments.filter((seg) => {
     if (force) return true;
     const prev = have.get(seg.imageId);
@@ -225,6 +254,8 @@ export function runCapcut({ project, config, draftDir, draftName, templateFile, 
 
   writeFileSafe(project.paths.srt, toSrt(timeline.audioSegments));
   writeFileSafe(project.paths.timelineTxt, toTimelineReport(timeline, config.fps));
+  const overlayCount = timeline.audioSegments.filter((s) => s.overlay).length;
+  writeFileSafe(project.paths.overlay, toOverlayPlan(timeline.audioSegments, config.fps));
 
   const template = templateFile ? learnTemplate(templateFile) : project.capcutTemplate || null;
   const name = draftName || project.name;
@@ -251,6 +282,9 @@ export function runCapcut({ project, config, draftDir, draftName, templateFile, 
   log.ok(`Draft CapCut: ${folder}`);
   log.dim(`  do dai ${formatDuration(timeline.duration)} · ${timeline.stats.imageCount} anh · ${timeline.stats.lineCount} cau thoai`);
   log.dim(`  phu de: ${project.paths.srt}`);
+  if (overlayCount) {
+    log.warn(`Con ${overlayCount} dong chu phai dat tay trong CapCut — xem ${project.paths.overlay}`);
+  }
   if (!config.capcutDraftDir && !draftDir) {
     log.warn('Chua dat CAPCUT_DRAFT_DIR — draft nam trong project. Copy thu muc tren vao thu muc draft cua CapCut roi mo lai CapCut.');
   }

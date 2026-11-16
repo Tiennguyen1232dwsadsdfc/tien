@@ -1,0 +1,32 @@
+# Cao Phục Khớp — 45s dọc 9:16 — nạp vào tools/autostory
+# Mỗi dòng: lời đọc || prompt ảnh (tiếng Anh) || chữ hiện trên màn hình
+# Bốn dòng cuối (L0012-L0015) phải GHÉP ẢNH HŨ THẬT — xem hướng dẫn cuối file.
+@title: Cao Phục Khớp 45s
+@style: photorealistic, vertical 9:16, natural daylight, modest rural northern Vietnamese home, ordinary clothing, no makeup, documentary feel, warm earth tones, no text, no watermark, no doctor, no white coat, no stethoscope, no hospital, no clinic, no medical equipment, no x-ray, no anatomical diagram, no before-after split, no young model, no luxury interior
+
+== Hook ==
+Trời trở lạnh, ba việc người đau khớp hay làm sai. || Vietnamese woman 65, grey hair in a bun, brown cardigan, sitting on the edge of a wooden bed in a modest northern Vietnamese house, cold early-morning light through a window, both hands pressing her knee, looking down || 3 VIỆC HAY LÀM SAI / khi trời trở lạnh
+
+== Sai lầm 1 ==
+Thứ nhất: thấy đau thì nằm một chỗ cho đỡ. || the same Vietnamese woman 65 lying on a bed under a thin blanket in mid-morning, a cup of tea gone cold on a stool beside her, grey overcast light || SAI 1: nằm một chỗ
+Càng ít đi lại, khớp càng cứng thêm. || close-up of an elderly Vietnamese woman's knee with wrinkled hands resting on it, warm indoor light || khớp càng cứng thêm
+Nên đi nhẹ trong nhà mỗi ngày. || the same Vietnamese woman 65 walking slowly along the indoor corridor of a village house, one hand on the wall, calm expression, morning light from the courtyard || đi nhẹ mỗi ngày
+
+== Sai lầm 2 ==
+Thứ hai: tự ra hiệu thuốc mua thuốc giảm đau. || a strip of blister-pack tablets and a glass of water on a dark wooden table in a village kitchen, no brand or label text visible, soft side light || SAI 2: tự mua thuốc giảm đau
+Uống dài ngày không hỏi bác sĩ là hại dạ dày. || Vietnamese man 68, thin, short white hair, grey shirt, sitting at a table with one hand on his stomach, modest home interior, afternoon light || uống dài ngày → hại dạ dày
+Đau nhiều thì đi khám. || hands of an elderly Vietnamese person holding a small paper health booklet, sitting on a plastic chair in a sunny courtyard || đau nhiều thì đi khám
+
+== Sai lầm 3 ==
+Thứ ba: chỉ giữ ấm tay chân. || the same Vietnamese woman 65 in a brown cardigan wearing wool socks and gloves, sitting by a doorway in cold weather, knees bare under a thin skirt, northern winter light || SAI 3: quên giữ ấm khớp lớn
+Đầu gối, vai, lưng mới cần ấm nhất. || the same Vietnamese woman 65 with a thick knitted shawl wrapped around her knees and a scarf over her shoulders, same doorway, warmer tone, content expression || đầu gối · vai · lưng
+Một cái khăn quấn đầu gối cũng đỡ. || close-up of a folded woollen blanket being tucked around an elderly person's knees, hands of a younger family member helping, warm indoor light || quấn ấm đầu gối
+
+== Sản phẩm ==
+Việc thứ tư: bổ sung dưỡng chất cho khớp. || a simple home table by a window, a glass of warm water with steam rising, reading glasses, a folded shawl, morning light, clean composition, empty space in the centre-right of the frame || VIỆC THỨ 4 / bổ sung dưỡng chất cho khớp
+Cao Phục Khớp là cao cô đặc, pha nước ấm uống. || GHEP ANH HU THAT - background only: the same home table, a glass of warm water with visible steam, a spoon beside it, soft morning light, large empty space in the centre of the frame for compositing a product jar, shallow depth of field || CAO PHỤC KHỚP / cao cô đặc · pha nước ấm
+Giúp cải thiện đau nhức xương khớp do thoái hoá, thoát vị. || GHEP ANH HU THAT - background only: the same home table seen slightly closer, warm morning light, empty space in the upper centre for the product jar and clear space in the lower third for a caption || Giúp cải thiện đau nhức xương khớp do thoái hoá, thoát vị / Kết quả có thể khác nhau ở mỗi người
+
+== Chốt ==
+Bình luận chữ KHỚP, sẽ có người gọi lại tư vấn. || GHEP ANH HU THAT - background only: plain warm light-brown backdrop, soft even lighting, empty space in the upper half for the product jar and the lower half clear for text || BÌNH LUẬN: KHỚP / sẽ có người gọi lại tư vấn miễn phí / Công ty Dược Minh Duy
+Thực phẩm này không phải là thuốc và không có tác dụng thay thế thuốc chữa bệnh. || GHEP ANH HU THAT - background only: plain warm light-brown backdrop, completely even lighting, product jar space in the upper third, entire lower half empty for a long caption || Thực phẩm này không phải là thuốc và không có tác dụng thay thế thuốc chữa bệnh. / Công ty Dược Minh Duy

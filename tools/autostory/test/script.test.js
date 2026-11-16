@@ -42,3 +42,17 @@ test('goi y anh chi gan cho manh dau tien', () => {
 test('kich ban rong thi bao loi', () => {
   assert.throws(() => parseScript('# chi co ghi chu\n\n'), /rong/);
 });
+
+test('doc truong thu ba lam lop chu tren man hinh', () => {
+  const p = parseScript('Cau mot. || anh mot || CHU TREN MAN HINH\nCau hai.');
+  assert.equal(p.lines[0].overlay, 'CHU TREN MAN HINH');
+  assert.equal(p.lines[0].imageHint, 'anh mot');
+  assert.equal(p.lines[1].overlay, '');
+  assert.equal(p.stats.overlayCount, 1);
+});
+
+test('lop chu chi gan cho manh dau khi cau bi tach', () => {
+  const p = parseScript('Cau mot. Cau hai. || anh || CHU');
+  assert.equal(p.lines[0].overlay, 'CHU');
+  assert.equal(p.lines[1].overlay, '');
+});
