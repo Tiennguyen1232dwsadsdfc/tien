@@ -58,6 +58,45 @@ Hiện chữ rõ ràng **và** đọc trong voiceover, giữ trên màn hình t�
 đoạn chốt, không nhét 0.5 giây ở frame cuối — hiện kiểu đó vừa không hợp quy định vừa
 làm người xem thấy mình bị che giấu điều gì.
 
+## Bước 2b — Nếu làm bằng ảnh AI: ba điều không được làm
+
+Gần như mọi video TPCN bây giờ dựng từ ảnh AI, và điều đó tạo ra ba cái bẫy mà kịch bản
+viết cho footage thật không có. Đọc kỹ phần này trước khi chọn công thức, vì nó loại bỏ
+một số công thức.
+
+**1. Không dựng nhân vật kể trải nghiệm dùng sản phẩm.**
+
+Một bà cụ do AI vẽ nói *"tôi uống hai hộp, giờ sáng nào cũng đi bộ được một vòng công
+viên"* là **chứng thực của người bệnh, nhưng người đó không tồn tại**. Vừa là thứ bị cấm
+trong quảng cáo thực phẩm, vừa là lời chứng thực bịa. Để lời kể "trong phạm vi sinh hoạt"
+không cứu được: vấn đề không phải nói về bệnh hay sinh hoạt, mà là một người bịa đang
+tường thuật kết quả.
+
+Đường đi đúng: nhân vật **chỉ kể cái khó của mình**, không bao giờ kể việc dùng sản phẩm
+và cũng không kể mình đã đỡ ra sao. Đến đoạn sản phẩm thì chuyển sang giọng dẫn trung
+tính. Mất một ít sức thuyết phục ở đoạn chốt, nhưng 20 giây đầu — phần giữ người xem —
+vẫn còn nguyên sức, vì nỗi khó là thật dù người trong ảnh là vẽ.
+
+Kèm theo: mọi video dùng ảnh AI đều ghi **"Hình ảnh minh hoạ"** ở góc, cỡ chữ đọc được.
+
+**2. Không để AI vẽ bao bì sản phẩm.**
+
+AI sẽ bịa chữ trên nhãn, bịa logo, bịa dung tích, bịa số viên. Nhãn bịa trên một sản phẩm
+đã công bố là chuyện khác hẳn một lỗi thẩm mỹ. Mọi cảnh có hộp/hũ/lọ phải **ghép ảnh thật
+hoặc file thiết kế bao bì** vào nền do AI sinh — nên khi viết prompt cho các cảnh đó, tả
+**nền trống** và chừa sẵn khoảng trống giữa khung để ghép, đừng tả cái hộp.
+
+**3. Giữ một người xuyên suốt.**
+
+Sinh ảnh cảnh đầu trước, rồi dùng chính ảnh đó làm character reference (image-to-image)
+cho các cảnh sau. Không làm vậy thì mỗi cảnh ra một người khác — nhóm 55-75 nhận ra ngay
+và mất tin. Nếu công cụ sinh ảnh của người dùng không giữ được nhân vật, chọn công thức
+không cần nhân vật (xem Bước 4).
+
+**Và một điều không riêng gì ảnh AI:** đừng bịa số liệu sản phẩm. Người dùng không cho
+số viên mỗi hộp thì không được viết "một hộp dùng đủ một tháng"; không cho giá thì không
+tự đặt giá. Những con số đó nghe vô hại nhưng là thông tin sai về sản phẩm.
+
 ## Bước 3 — Viết cho người 50-75 tuổi, không phải cho người 25 tuổi
 
 Đây là chỗ hầu hết kịch bản TPCN thất bại: lấy nhịp ads giới trẻ rồi chỉ đổi lời. Những
@@ -81,7 +120,9 @@ làm người xem thấy mình bị che giấu điều gì.
 - Tối đa **6 từ một dòng, 2 dòng một lúc**. Chữ chạy từng từ (karaoke) thì chậm lại, hoặc bỏ.
 - Phụ đề toàn bộ voiceover, luôn bật. Nhiều người nghe kém, và nhiều người xem ở nơi
   không tiện bật tiếng.
-- Vùng an toàn: tránh 250px trên và 400px dưới của khung (chỗ TikTok/Reels đè nút và caption).
+- Vùng an toàn: tránh 250px trên và 400px dưới của khung. **Góc dưới là chỗ tệ nhất để đặt
+  chữ**, không phải chỗ "đỡ che hình" — đó đúng là nơi TikTok và Reels đè nút tương tác,
+  tên tài khoản và caption lên, nên chữ ở đó bị che mất dù to hay nhỏ.
 
 **Giọng đọc**
 - Nữ trung niên ấm, hoặc nam trung niên điềm đạm. Tránh giọng trẻ cao, giọng "chợ", giọng
@@ -103,11 +144,17 @@ làm người xem thấy mình bị che giấu điều gì.
   không bế được cháu, không đi chợ được, làm gánh nặng cho con.
 - Phản bác sẵn ba lo ngại hay gặp: "uống nhiều thuốc hại gan thận", "đã uống loại khác
   không đỡ", "sợ mua phải hàng giả".
+- **Đừng gieo sợ hãi quá mức.** Nỗi sợ mất tự lập là nỗi sợ thật và dùng được; nhưng ngụ ý
+  sẽ mù, sẽ cắt chân, sẽ suy thận, sẽ nằm một chỗ thì vừa vi phạm chính sách nền tảng vừa
+  làm nhóm khách này phản ứng ngược — họ đã nghe quá nhiều lời hù.
 
 **Lời kêu gọi hành động**
 - Hành động phải là thứ người 65 tuổi làm được bằng một ngón tay: **để lại số điện thoại**,
   **bình luận một chữ** ("bình luận chữ KHỚP"), hoặc **gọi số hiện trên màn hình**.
 - Đừng dùng: QR code, "link in bio", "swipe up", "điền form", "inbox shop". Họ sẽ không làm.
+  Riêng "link in bio" còn sai về mặt kỹ thuật với quảng cáo TikTok In-Feed: quảng cáo dạng
+  đó không có trang cá nhân để bấm vào, nên câu đó vừa vô nghĩa vừa bị tính là CTA gây
+  nhầm lẫn.
 - Nói rõ sau đó chuyện gì xảy ra: "sẽ có người gọi lại tư vấn miễn phí" — giảm nỗi sợ bị lừa.
 
 ## Bước 4 — Chọn công thức kịch bản
@@ -170,6 +217,11 @@ Cỡ chữ · font · vùng an toàn · bảng màu · nhạc nền (loại + â
 | Công dụng nói đúng theo công bố | ⚠ | cần đối chiếu giấy xác nhận |
 | Có tên sản phẩm + đơn vị chịu trách nhiệm | ✅ | giây 43 |
 | (Nhóm tiểu đường) có câu không tự ý bỏ thuốc | ✅ | |
+| Không nhân vật nào kể trải nghiệm dùng sản phẩm | ✅ | nhân vật chỉ kể cái khó |
+| Cảnh bao bì dùng ảnh thật, không để AI vẽ nhãn | ⚠ | phụ thuộc người dùng ghép ảnh |
+| Có ghi "Hình ảnh minh hoạ" | ✅ | góc trên phải, suốt video |
+| Không bịa số liệu sản phẩm (liều, số viên, giá) | ✅ | chỉ dùng số người dùng đưa |
+| Không gieo sợ hãi quá mức | ✅ | không nhắc tàn phế, cắt chân, phải mổ |
 
 ## Gợi ý A/B test
 Đổi gì, giữ gì, đo gì.
@@ -178,6 +230,25 @@ Cỡ chữ · font · vùng an toàn · bảng màu · nhạc nền (loại + â
 Checklist tuân thủ là phần quan trọng nhất của bản trả về, và phải **trung thực**. Nếu một
 dòng chưa đạt vì thiếu thông tin, ghi ⚠ và nói cần gì — đánh ✅ cho qua sẽ khiến người dùng
 tưởng an toàn rồi mang đi chạy thật.
+
+## Nền tảng quét nhiều hơn cái video
+
+Khi người dùng bị từ chối nhiều lần, gần như chắc chắn họ chỉ đang sửa video. Nhưng Meta và
+TikTok xét cả **những thứ quanh video**, và một chỗ sai ở đó làm cả chiến dịch bị từ chối dù
+video đã sạch:
+
+- **Caption và bình luận ghim** — tính là nội dung quảng cáo. Câu "cam kết khỏi" nhét ở
+  caption bị bắt y như nhét trong video.
+- **Trang đích / landing page** — nơi hay còn nguyên "đặc trị", "cam kết 100%", ảnh bác sĩ.
+- **Kịch bản chốt đơn qua tin nhắn hoặc điện thoại** — người gọi lại hứa khỏi thì vẫn là
+  quảng cáo sai, và đây là chỗ không ai soát.
+- **Ảnh thumbnail** và **cách nhắm đối tượng** — nhắm theo tình trạng bệnh là một đường
+  khác dẫn tới lỗi thuộc tính sức khoẻ cá nhân.
+
+Nên khi giao kịch bản, nhắc họ soát cả bốn chỗ này. Và nếu họ đã bị từ chối ba lần trở lên:
+**đừng nộp lại cùng một creative sau khi sửa đoán** — nộp lại nhiều lần làm tăng rủi ro bị
+hạn chế tài khoản. Vào trình quản lý quảng cáo đọc đúng lý do nền tảng trả về cho từng lần,
+sửa đúng chỗ đó, rồi dựng video mới.
 
 ## Khi người dùng đưa kịch bản có sẵn
 

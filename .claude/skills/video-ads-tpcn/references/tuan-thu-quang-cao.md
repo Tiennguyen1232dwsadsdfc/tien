@@ -7,7 +7,9 @@ Mục lục
 4. Chính sách nền tảng (Meta, TikTok)
 5. Quy tắc viết hook không vi phạm "thuộc tính sức khoẻ cá nhân"
 6. Phần bắt buộc phải có trong video
-7. Checklist rà soát cuối
+7. Nhân vật do AI vẽ: ranh giới ở đâu
+8. Nền tảng quét những gì ngoài video
+9. Checklist rà soát cuối
 
 ---
 
@@ -54,6 +56,10 @@ là rà soát nghiệp vụ chứ không thay được ý kiến của người 
 | Ảnh phim X-quang trước/sau, ảnh chân loét trước/sau | Nền tảng cấm ảnh trước-sau y tế; cũng không chứng minh được | Cảnh sinh hoạt trước/sau: ngồi một chỗ → đi chợ, dắt cháu |
 | "Sản phẩm số 1 Việt Nam" | Khẳng định vị trí không chứng minh được — Luật Quảng cáo cấm | "Đã có mặt trên thị trường X năm" (nếu đúng) |
 | "Tiểu đường là do thận yếu, uống cái này là hết" | Thông tin y khoa sai + claim điều trị | Bỏ phần giải thích sai. Nói đúng mức: "Tuổi càng cao, cơ thể chuyển hoá đường càng kém đi" |
+| Người do AI vẽ nói "tôi uống hai hộp, giờ đi lại bình thường" | Chứng thực của người bệnh, và người đó không tồn tại | Nhân vật chỉ kể cái khó; đoạn sản phẩm do giọng dẫn nói. Xem mục 7 |
+| "Một hộp dùng đủ một tháng" khi không biết số viên | Thông tin sai về sản phẩm | Bỏ, hoặc hỏi lại số viên mỗi hộp trước khi viết |
+| "Nếu không dùng sớm thì sau này phải cắt chân" | Gieo sợ hãi quá mức — chính sách nền tảng | "Để lâu thì việc đi lại ngày càng khó hơn" |
+| "Bấm link in bio để đặt hàng" (quảng cáo TikTok In-Feed) | CTA gây nhầm lẫn: quảng cáo In-Feed không có trang cá nhân để bấm | "Bình luận chữ KHỚP" hoặc "để lại số điện thoại" |
 
 Nguyên tắc chung để tự suy ra: **được nói về sản phẩm và về sinh hoạt, không được nói về
 bệnh sẽ khỏi.** "Hộp này 60 viên" được. "Thành phần có glucosamine" được. "Nhiều người cho
@@ -156,7 +162,68 @@ mỗi người."**
 
 ---
 
-## 7. Checklist rà soát cuối
+## 7. Nhân vật do AI vẽ: ranh giới ở đâu
+
+Đây là chỗ sai phổ biến nhất hiện nay, và là chỗ dễ tưởng mình đang làm đúng nhất, vì
+người viết nghĩ rằng chỉ cần "giữ lời kể trong phạm vi sinh hoạt" là an toàn.
+
+Không an toàn. Hai thứ cộng lại thành vấn đề:
+
+1. Quảng cáo thực phẩm **không được dùng lời chứng thực của người bệnh**.
+2. Người trong ảnh AI **không tồn tại**, nên lời chứng thực ấy còn là bịa.
+
+Nên câu *"tôi uống hai hộp, giờ sáng nào cũng đi bộ được một vòng"* sai ở cả hai lớp, dù
+nó chỉ nói về việc đi bộ chứ không nói chữ "khỏi".
+
+**Được và không được:**
+
+| Nhân vật AI nói | Được? |
+|---|---|
+| "Mỗi lần xuống cầu thang là phải bám hai tay vào tường." | ✅ kể cái khó của mình |
+| "Tôi chỉ mong bế được đứa cháu mà không phải nhờ ai." | ✅ mong muốn, không phải kết quả |
+| "Trời lạnh là tôi đau cả đêm không ngủ được." | ✅ kể triệu chứng của chính mình |
+| "Con dâu tôi mua cho tôi hộp này." | ❌ bắt đầu kể việc dùng sản phẩm |
+| "Tôi uống được một tháng rồi." | ❌ kể việc dùng, dù chưa nói kết quả |
+| "Giờ tôi đi chợ được rồi." | ❌ kết quả, dù chỉ là sinh hoạt |
+| "Đường huyết tôi về bình thường." | ❌ kết quả + chỉ số |
+
+**Cách bố trí an toàn:** nhân vật nói phần đầu (cái khó, điều mong muốn), rồi **chuyển sang
+giọng dẫn trung tính** cho đoạn sản phẩm. Giọng dẫn nói về sản phẩm thì không phải là chứng
+thực của ai cả — nó là lời của bên bán, đúng vai.
+
+**Hai điều kèm theo:**
+- Ghi **"Hình ảnh minh hoạ"** ở góc video, cỡ chữ đọc được, suốt thời lượng.
+- **Không để AI vẽ bao bì.** AI bịa chữ trên nhãn, bịa logo, bịa dung tích — nhãn bịa trên
+  sản phẩm đã công bố là rủi ro về nội dung quảng cáo. Ghép ảnh thật vào nền AI, và viết
+  prompt cho các cảnh đó là **nền trống có chừa khoảng trống**, đừng tả cái hộp.
+
+Nếu người dùng có **người thật, nói trước camera, đồng ý cho dùng hình**, thì lời kể trải
+nghiệm dùng được — nhưng vẫn giữ trong phạm vi sinh hoạt, vẫn kèm "kết quả có thể khác nhau
+ở mỗi người", và vẫn không được là thư cảm ơn.
+
+---
+
+## 8. Nền tảng quét những gì ngoài video
+
+Người bị từ chối nhiều lần thường chỉ sửa video. Nhưng một chỗ sai ở những thứ quanh video
+cũng làm cả chiến dịch bị từ chối, và đó là lý do sửa video mãi không được duyệt:
+
+| Chỗ | Lỗi hay còn sót ở đó |
+|---|---|
+| Caption | "cam kết khỏi", "đặc trị" — caption tính là nội dung quảng cáo |
+| Bình luận ghim | lời hứa hiệu quả, hoặc lời chứng thực |
+| Trang đích / landing page | ảnh bác sĩ, "cam kết 100%", bảng trước-sau |
+| Kịch bản chốt đơn (tin nhắn / điện thoại) | người gọi lại hứa khỏi — không ai soát chỗ này |
+| Thumbnail | ảnh cơ thể, ảnh trước-sau |
+| Cách nhắm đối tượng | nhắm theo tình trạng bệnh — một đường khác dẫn tới lỗi thuộc tính sức khoẻ cá nhân |
+
+**Nếu đã bị từ chối ba lần trở lên:** đừng nộp lại cùng creative sau khi sửa đoán. Nộp lại
+nhiều lần làm tăng rủi ro bị hạn chế tài khoản. Vào trình quản lý quảng cáo đọc đúng lý do
+nền tảng trả về cho từng lần, sửa đúng chỗ đó, rồi dựng video mới trong nhóm quảng cáo mới.
+
+---
+
+## 9. Checklist rà soát cuối
 
 Chạy qua danh sách này trước khi trả kịch bản. Đánh ⚠ thay vì ✅ nếu chưa chắc — đánh ✅ cho
 qua là cách làm người dùng mang rủi ro đi chạy thật mà không biết.
@@ -172,5 +239,11 @@ qua là cách làm người dùng mang rủi ro đi chạy thật mà không bi�
 - [ ] Nhóm tiểu đường: có câu không tự ý bỏ thuốc
 - [ ] Có lời kể trải nghiệm thì có dòng "kết quả có thể khác nhau ở mỗi người"
 - [ ] Không gieo sợ hãi quá mức (ví dụ: ngụ ý sẽ mù, sẽ cắt chân, sẽ chết nếu không dùng)
+- [ ] Không nhân vật nào kể việc dùng sản phẩm hay kể kết quả (nhất là khi dựng bằng ảnh AI)
+- [ ] Cảnh bao bì dùng ảnh thật, không để AI vẽ nhãn
+- [ ] Có ghi "Hình ảnh minh hoạ" nếu dùng ảnh AI
+- [ ] Không bịa số liệu sản phẩm: liều dùng, số viên mỗi hộp, dùng được bao lâu, giá
+- [ ] Đã soát cả caption, bình luận ghim, trang đích, kịch bản chốt đơn — không riêng video
+- [ ] CTA phù hợp định dạng quảng cáo (In-Feed không có bio để bấm)
 - [ ] Nếu triệu chứng nêu ra có thể là dấu hiệu bệnh cần khám (tiểu ra máu, sụt cân nhanh,
       đau dữ dội), có câu khuyên đi khám

@@ -15,31 +15,53 @@ Beat sheet dưới đây tính cho **45 giây**, mốc mặc định của skill
 pháp lý riêng — phần đó quan trọng hơn phần beat, vì beat sai thì ad kém, còn cạm bẫy sai
 thì ad bị gỡ.
 
+> **Trước khi chọn: video dựng bằng ảnh AI hay footage thật?**
+>
+> Nếu bằng ảnh AI (phần lớn trường hợp), thì **không nhân vật nào được kể việc dùng sản
+> phẩm hay kể mình đã đỡ ra sao** — người đó không tồn tại, nên đó là lời chứng thực bịa
+> của một người bệnh không có thật. Ba công thức 1, 2, 5 vốn dựa vào điều này, nên bên dưới
+> chúng đã được viết lại theo hướng **nhân vật chỉ kể cái khó, không kể kết quả**.
+>
+> Nhân vật kể trải nghiệm chỉ dùng được khi có **người thật, nói trước camera, đồng ý cho
+> dùng hình** — và kể cả khi đó vẫn phải giữ trong phạm vi sinh hoạt, kèm dòng "kết quả có
+> thể khác nhau ở mỗi người", và không phải là thư cảm ơn.
+>
+> Nếu công cụ sinh ảnh của người dùng không giữ được một nhân vật nhất quán qua nhiều cảnh,
+> bỏ hẳn các công thức có nhân vật và dùng 3, 4, 6, 7.
+
 ---
 
-## 1. Lời kể người cùng tuổi
+## 1. Lời kể cái khó (không kể kết quả)
 
-Người xem tin người giống mình hơn tin thương hiệu. Công thức mạnh nhất với nhóm này, và
-cũng là công thức dễ vi phạm nhất.
+Người xem tin người giống mình hơn tin thương hiệu, nên để một người cùng tuổi kể cái khó
+của mình là cách mở mạnh nhất với nhóm này. Chỗ phải dừng lại: **nhân vật kể nỗi khó, rồi
+dừng ở đó.** Đoạn sản phẩm do giọng dẫn trung tính nói, không phải nhân vật.
 
-| Giây | Nội dung |
-|---|---|
-| 0-3 | Câu kể trúng một chi tiết sinh hoạt rất cụ thể, không nói bệnh |
-| 3-12 | Kể cái bất tiện hằng ngày: không làm được việc gì, phải nhờ ai |
-| 12-20 | Khúc chuyển: biết đến sản phẩm qua ai, lúc đầu còn ngờ |
-| 20-30 | Tên sản phẩm + thành phần + công dụng theo công bố |
-| 30-38 | Sinh hoạt bây giờ khác thế nào (vẫn chỉ nói sinh hoạt) |
-| 38-45 | Offer + CTA + khuyến cáo + "kết quả có thể khác nhau ở mỗi người" |
+| Giây | Nội dung | Ai nói |
+|---|---|---|
+| 0-3 | Câu kể trúng một chi tiết sinh hoạt rất cụ thể, không nói bệnh | nhân vật |
+| 3-14 | Cái bất tiện hằng ngày: không làm được việc gì, phải nhờ ai | nhân vật |
+| 14-20 | Điều người ấy mong làm lại được (mong, không phải đã làm được) | nhân vật |
+| 20-32 | Tên sản phẩm + dạng + thành phần + công dụng theo công bố | **giọng dẫn** |
+| 32-38 | Một chi tiết kiểm chứng được: bán bao lâu, nơi sản xuất, dạng bào chế | giọng dẫn |
+| 38-45 | Offer + CTA + khuyến cáo | giọng dẫn |
 
 Ví dụ hook:
-- Xương khớp: "Tôi 63 tuổi. Trước mỗi lần xuống cầu thang là phải bám hai tay vào tường."
+- Xương khớp: "Tôi 63 tuổi. Mỗi lần xuống cầu thang là phải bám hai tay vào tường."
 - Tiểu đêm: "Đêm nào tôi cũng dậy bốn lần. Sáng ra người cứ nặng như chì."
 - Tiểu đường: "Mười năm nay bữa cơm nào tôi cũng phải tính từng thìa."
 
-**Cạm bẫy:** đây là nơi dễ biến thành "thư cảm ơn của người bệnh", thứ bị cấm. Giữ lời kể
-**trong phạm vi sinh hoạt** — "giờ tôi đi chợ được" thì được, "giờ tôi khỏi bệnh rồi",
-"đường huyết tôi về bình thường" thì không. Và người kể không được là bác sĩ, không mặc áo
-blouse, không ngồi trong phòng khám.
+Ví dụ câu chuyển ở giây 14-20, chỗ thay cho đoạn "tôi uống rồi tôi đỡ":
+> "Tôi chỉ mong bế được đứa cháu mà không phải nhờ con dâu đỡ hộ."
+
+**Vì sao dừng ở đó mà vẫn bán được:** nỗi khó là thật dù người trong ảnh là vẽ, nên 20 giây
+đầu giữ nguyên sức. Phần còn lại chuyển sang thứ kiểm chứng được — thành phần, dạng bào chế,
+đơn vị chịu trách nhiệm — và nhóm khách này tin thứ kiểm chứng được hơn tin một lời hứa, vì
+họ đã nghe lời hứa quá nhiều lần.
+
+**Cạm bẫy:** đừng để nhân vật nói câu nào có "tôi uống", "tôi dùng", "giờ tôi…". Một câu như
+vậy biến cả video thành chứng thực của người bệnh — bị cấm, và nếu người ấy do AI vẽ thì còn
+là chứng thực bịa. Người kể cũng không được là bác sĩ, không áo blouse, không phòng khám.
 
 ---
 
@@ -53,17 +75,23 @@ mua cho bố mẹ.
 |---|---|
 | 0-3 | "Mẹ tôi 68 tuổi..." + một chi tiết khiến người con xót |
 | 3-12 | Bố/mẹ giấu bệnh, không muốn con lo, tự chịu |
-| 12-20 | Người con đi tìm hiểu, chọn sản phẩm cho bố mẹ |
-| 20-30 | Tên sản phẩm + thành phần + công dụng theo công bố |
-| 30-38 | Cảnh bố mẹ sinh hoạt dễ hơn, con yên tâm hơn |
+| 12-20 | Người con đi tìm hiểu, và vì sao chọn sản phẩm này cho bố mẹ |
+| 20-32 | Tên sản phẩm + dạng + thành phần + công dụng theo công bố |
+| 32-38 | Vì sao người con yên tâm: dạng bào chế, đơn vị chịu trách nhiệm |
 | 38-45 | "Các anh chị mua cho bố mẹ" + CTA + khuyến cáo |
 
 Ví dụ hook:
 - Xương khớp: "Mẹ tôi 68 tuổi, đi được một trăm mét là phải tìm chỗ ngồi."
 - Tiểu đêm: "Nửa đêm tôi hay nghe tiếng bố dậy. Ba bốn lần một đêm, mà bố không nói gì."
 
-**Cạm bẫy:** đừng để thành đe doạ ("nếu không dùng thì bố mẹ sẽ nằm một chỗ"). Gieo sợ hãi
-quá mức vi phạm chính sách nền tảng và làm người xem phản ứng ngược.
+**Cạm bẫy:** hai cái.
+
+Thứ nhất, câu chuyện phải **dừng ở việc người con chọn mua**, không kể tiếp "giờ mẹ tôi đi
+lại được rồi". Kể tiếp là thành chứng thực kết quả, chỉ chuyển từ miệng người bệnh sang
+miệng người con — vẫn là thứ bị cấm, và vẫn là người bịa nếu dựng bằng ảnh AI.
+
+Thứ hai, đừng để thành đe doạ ("không dùng thì bố mẹ sẽ nằm một chỗ"). Gieo sợ hãi quá mức
+vi phạm chính sách nền tảng và làm người xem phản ứng ngược.
 
 ---
 
@@ -116,22 +144,28 @@ cơ chế bệnh để bán hàng.
 
 ---
 
-## 5. Một ngày trước — một ngày sau
+## 5. Một ngày khó — và việc muốn làm lại được
 
-Dựng bằng ảnh rất dễ, vì chỉ cần hai bộ cảnh sinh hoạt đối lập. Phù hợp khi muốn làm nhiều
-biến thể nhanh.
+Trước đây công thức này là "trước / sau". Đã bỏ cấu trúc đó: cảnh "sau" là kết quả sau khi
+dùng sản phẩm, nên dù chỉ quay sinh hoạt thì vẫn là tuyên bố hiệu quả, và dựng bằng ảnh AI
+thì là tuyên bố hiệu quả về một người không tồn tại.
+
+Bản thay thế giữ được sức đối lập bằng cách đổi trục: không phải *trước và sau khi uống*,
+mà là *cái đang khó* và *việc mình mong làm lại được*. Cùng hai bộ ảnh đối lập, dựng vẫn
+dễ như cũ, nhưng không hứa gì.
 
 | Giây | Nội dung |
 |---|---|
-| 0-3 | Cảnh một buổi sáng khó khăn, không lời giải thích |
-| 3-14 | Chuỗi cảnh "trước": ngồi một chỗ, nhờ con, bỏ việc mình thích |
-| 14-22 | Khúc chuyển + sản phẩm + công dụng công bố |
-| 22-34 | Chuỗi cảnh "sau": đi chợ, dắt cháu, tưới cây, ngủ được |
-| 34-45 | Offer + CTA + khuyến cáo + "kết quả có thể khác nhau ở mỗi người" |
+| 0-3 | Cảnh một buổi sáng khó, không lời giải thích |
+| 3-14 | Chuỗi cảnh cái khó: ngồi một chỗ, nhờ con, bỏ việc mình thích |
+| 14-24 | Chuỗi cảnh **việc mong làm lại được**, kèm lời "các cô chú mong nhất là…" — mong, không phải đã làm được |
+| 24-36 | Sản phẩm + dạng + thành phần + công dụng theo công bố |
+| 36-45 | Offer + CTA + khuyến cáo |
 
-**Cạm bẫy:** trước/sau **chỉ được là sinh hoạt**, không được là cơ thể hay chỉ số. Ảnh chân
-sưng trước/sau, phim X-quang, bảng đường huyết trước/sau đều bị nền tảng chặn và vi phạm
-quy định. Cảnh "trước" cũng đừng bi thảm quá mức.
+**Cạm bẫy:** đừng để chuỗi cảnh thứ hai đứng **sau** đoạn sản phẩm, vì đặt sau là người xem
+đọc thành kết quả dù lời đọc không nói. Đặt trước đoạn sản phẩm, và lời đọc phải ở thể mong
+muốn. Và như mọi công thức: không ảnh cơ thể hay chỉ số trước/sau — chân sưng, phim X-quang,
+bảng đường huyết đều bị nền tảng chặn.
 
 ---
 
@@ -196,6 +230,8 @@ Phần khuyến cáo bắt buộc **luôn giữ đủ 3 giây**, kể cả bản
 | Khách đã thấy ad nhiều lần, còn do dự | 6 |
 | Cần ra nhiều biến thể nhanh để test | 5 |
 | Muốn tỉ lệ xem hết cao | 4 |
+| **Dựng bằng ảnh AI, công cụ không giữ được nhân vật** | **3, 4, 6 hoặc 7 — không cần nhân vật** |
+| **Chưa có công dụng theo công bố** | **3 hoặc 7 — phần lớn thời lượng không nói về sản phẩm** |
 
 Khi làm nhiều mẫu để test, chọn các công thức **khác nhau về cách mở**. Ba biến thể của cùng
 một cách mở chỉ cho biết câu nào hay hơn; ba cách mở khác nhau cho biết kiểu tiếp cận nào
