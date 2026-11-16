@@ -8,21 +8,32 @@
 | Công dụng theo công bố | **"Giúp bổ thận, hỗ trợ giảm triệu chứng tiểu đêm, tiểu nhiều lần"** |
 | Thành phần nêu trên nhãn | Kim anh tử · Thỏ ty tử (mặt trước) |
 | Quy cách | Lọ 30 viên |
+| Liều dùng | 2 viên/lần, ngày 2 lần — **4 viên/ngày** |
+| Offer | Mua 2 tặng 1 — **1.560.000đ** (3 lọ) |
+| Đơn vị chịu trách nhiệm | **Công ty Dược Minh Duy** |
 | Sản xuất | Nhà máy đạt chuẩn GMP |
 | Đối tượng | Các bác nam 55-75, tiểu đêm nhiều lần |
 | CTA | Bình luận chữ **ĐÊM** → gọi lại tư vấn miễn phí |
 | Thời lượng | 45 giây, dọc 1080×1920 |
 
-**Bốn thứ tôi không đọc được từ ảnh, nên không điền:**
+**Phép tính từ liều dùng — con số phải nói đúng:**
 
-| Thiếu | Vì sao cần |
+| | |
 |---|---|
-| ⚠ **Đơn vị chịu trách nhiệm** | Bắt buộc hiện cuối video. Mặt bên phải của lọ có nhưng ảnh không rõ chữ |
-| ⚠ **Liều dùng** (mấy viên một ngày) | Lọ 30 viên, nhưng 1 viên/ngày là 30 ngày còn 2 viên/ngày là 15 ngày. Tôi không được đoán — nói sai liều là nói sai thông tin sản phẩm |
-| ⚠ **Giá và ưu đãi** | Có đưa vào video hay để người gọi lại nói, như bản Cao Phục Khớp |
-| Thành phần đầy đủ | Mặt bên lọ có bảng định lượng (500mg, 450mg, 400mg…) nhưng ảnh không đọc được tên. Hiện tôi chỉ dùng hai vị in ở mặt trước |
+| 1 lọ 30 viên ÷ 4 viên/ngày | **7,5 ngày** |
+| Mua 2 tặng 1 = 3 lọ = 90 viên | **22,5 ngày** — khoảng 3 tuần |
+| 1.560.000đ ÷ 22,5 ngày | **≈ 69.000đ/ngày** |
 
-Gửi tôi bốn mục này, hoặc chụp lại rõ hai mặt bên của lọ là đủ.
+Nên trong video ghi **"3 lọ dùng hơn 3 tuần"**, không ghi "đủ một tháng". Câu "đủ một tháng"
+nghe xuôi tai nhưng sai 7 ngày, và đó là thông tin sai về sản phẩm.
+
+**Một chỗ cần bạn xác nhận:** tôi hiểu 1.560.000đ là giá của gói mua 2 tặng 1 (trả tiền 2 lọ,
+nhận 3 lọ, tức 780.000đ/lọ). Nếu 1.560.000đ là giá **một lọ** thì nói ngay, vì con số trên
+màn hình sẽ khác hẳn.
+
+**Còn thiếu:** thành phần đầy đủ. Mặt bên lọ có bảng định lượng (500mg, 450mg, 400mg…) nhưng
+ảnh không đọc được tên vị. Hiện tôi chỉ dùng hai vị in ở mặt trước. Không bắt buộc, nhưng có
+thì đoạn giây 28 đáng tin hơn.
 
 **Một điều về câu công dụng:** câu trên nhãn viết rất chuẩn — có chữ "hỗ trợ", không nhắc
 tên bệnh, không hứa kết quả. Tôi dùng nguyên văn, không sửa một chữ. Vẫn nên đối chiếu với
@@ -64,10 +75,10 @@ nhân vật không nói câu nào về việc dùng sản phẩm. Lý do ở m�
 | 17.5-21.0 | **giọng dẫn** | Wide shot of a quiet northern Vietnamese village lane at dusk, two elderly men sitting on a low wall talking, warm evening light, no faces in focus | "Nhiều bác ngoài năm mươi gặp đúng cảnh này." | nhiều bác ngoài 50 gặp cảnh này | zoom chậm ra |
 | 21.0-24.5 | giọng dẫn | A simple calendar on a wall next to a window, soft daylight, clean composition, no text legible on the calendar | "Tuổi càng cao, chức năng thận càng kém đi." | tuổi càng cao · thận càng kém | tĩnh |
 | 24.5-28.0 | giọng dẫn | Hands of an elderly Vietnamese person holding a small paper health booklet, sitting on a plastic chair in a sunny courtyard, no clinic, no uniform, no medical equipment | "Dậy đêm nhiều kèm tiểu buốt thì nên đi khám." | ✅ kèm tiểu buốt → đi khám | zoom chậm ra |
-| 28.0-32.0 | giọng dẫn | **GHÉP ẢNH LỌ THẬT** — nền: a wooden table by a window in the early evening, a glass of water, warm lamp light, large empty space in the centre of the frame for compositing a product bottle, shallow depth of field | "Viên tiểu đêm Bổ Thận Kaimen, từ kim anh tử, thỏ ty tử." | **BỔ THẬN KAIMEN**<br>kim anh tử · thỏ ty tử | tĩnh |
+| 28.0-32.0 | giọng dẫn | **GHÉP ẢNH LỌ THẬT** — nền: a wooden table by a window in the early evening, a glass of water, warm lamp light, large empty space in the centre of the frame for compositing a product bottle, shallow depth of field | "Viên tiểu đêm Bổ Thận Kaimen, từ kim anh tử, thỏ ty tử." | **BỔ THẬN KAIMEN**<br>kim anh tử · thỏ ty tử<br><sub>ngày 2 lần · mỗi lần 2 viên</sub> | tĩnh |
 | 32.0-36.5 | giọng dẫn | **GHÉP ẢNH LỌ THẬT** — nền: the same table seen slightly closer, warm evening light, empty space in the upper centre for the bottle and clear space in the lower third for a caption | "Giúp bổ thận, hỗ trợ giảm triệu chứng tiểu đêm, tiểu nhiều lần." | **Giúp bổ thận, hỗ trợ giảm triệu chứng tiểu đêm, tiểu nhiều lần**<br><sub>Kết quả có thể khác nhau ở mỗi người</sub> | tĩnh |
-| 36.5-40.0 | giọng dẫn | **GHÉP ẢNH LỌ THẬT** — nền: plain warm dark-green backdrop, soft even lighting, empty space in the upper half for the bottle, lower half clear for text | "Bình luận chữ ĐÊM, sẽ có người gọi lại tư vấn." | **BÌNH LUẬN: ĐÊM**<br>Lọ 30 viên · nhà máy đạt chuẩn GMP<br>*gọi lại tư vấn miễn phí* | tĩnh |
-| 40.0-45.0 | giọng dẫn | **GHÉP ẢNH LỌ THẬT** — nền: plain warm dark-green backdrop, completely even lighting, bottle space in the upper third, entire lower half empty for a long caption | "Thực phẩm này không phải là thuốc và không có tác dụng thay thế thuốc chữa bệnh." | *Thực phẩm này không phải là thuốc và không có tác dụng thay thế thuốc chữa bệnh.*<br><sub>⚠ [ĐƠN VỊ CHỊU TRÁCH NHIỆM — cần điền]</sub> | tĩnh, không chuyển cảnh |
+| 36.5-40.0 | giọng dẫn | **GHÉP ẢNH LỌ THẬT** — nền: plain warm dark-green backdrop, soft even lighting, empty space in the upper half for the bottle, lower half clear for text | "Mua hai tặng một, bình luận chữ ĐÊM để được tư vấn." | **MUA 2 TẶNG 1 — 1.560.000đ**<br>3 lọ · dùng hơn 3 tuần<br>**BÌNH LUẬN: ĐÊM**<br><sub>lọ 30 viên · nhà máy đạt chuẩn GMP</sub> | tĩnh |
+| 40.0-45.0 | giọng dẫn | **GHÉP ẢNH LỌ THẬT** — nền: plain warm dark-green backdrop, completely even lighting, bottle space in the upper third, entire lower half empty for a long caption | "Thực phẩm này không phải là thuốc và không có tác dụng thay thế thuốc chữa bệnh." | *Thực phẩm này không phải là thuốc và không có tác dụng thay thế thuốc chữa bệnh.*<br><sub>Công ty Dược Minh Duy</sub> | tĩnh, không chuyển cảnh |
 
 **Hậu tố dán kèm mọi prompt ảnh:**
 > `vertical 9:16 composition, photorealistic, natural lighting, modest rural northern Vietnamese home, ordinary clothing, no makeup, documentary feel --no text, watermark, logo, doctor, nurse, pharmacist, white coat, stethoscope, hospital, clinic, pharmacy counter, medical equipment, x-ray, anatomical diagram, urinary tract diagram, before-after split, collage, young model, luxury interior, extra fingers`
@@ -114,6 +125,8 @@ có người hứa hẹn lại dễ tin hơn.
   trong tối, tôi sợ nhất là trượt chân" (giây 10.5); (2) "Nhiều bác ngoài năm mươi gặp đúng
   cảnh này" (giây 17.5). **Không cắt** câu công dụng, câu khuyên đi khám, câu khuyến cáo.
 - **Nhấn**: "ba bốn lần" · "rã rời" · "Bổ Thận Kaimen" (tách rõ ba chữ) · "ĐÊM" trong CTA.
+- **Giá không đọc trong voiceover**, chỉ hiện chữ. Số tiền bảy chữ số đọc lên nghe nặng và
+  mất gần 3 giây; để người xem tự đọc rồi người gọi lại giải thích thì mềm hơn.
 - **Nghỉ**: 0.5 giây sau mỗi câu; **0.8 giây ở giây 17.5** — khoảng lặng đó là chỗ đổi giọng.
 - **Khuyến cáo đọc nguyên tốc độ**, không nén cho kịp.
 
@@ -154,11 +167,26 @@ có người hứa hẹn lại dễ tin hơn.
 | Có ghi "Hình ảnh minh hoạ" | ✅ | góc trên phải, suốt video |
 | Không bịa số liệu sản phẩm | ✅ | chỉ nói "lọ 30 viên" đọc từ nhãn; **không** nói dùng được bao lâu vì chưa biết liều |
 | Có tên sản phẩm đọc rõ | ✅ | giây 28.0 |
+| Có tên đơn vị chịu trách nhiệm | ✅ | frame cuối — Công ty Dược Minh Duy |
+| Số ngày dùng tính đúng theo liều | ✅ | 90 viên ÷ 4 viên/ngày = 22,5 ngày → ghi "hơn 3 tuần", không ghi "một tháng" |
 | Cảnh bao bì dùng ảnh thật | ⚠ | bạn đã có ảnh lọ — ghép vào 4 cảnh cuối |
-| Có tên đơn vị chịu trách nhiệm | ⚠ | **cần điền** — frame cuối |
 | Đã đối chiếu giấy xác nhận nội dung quảng cáo | ⚠ | cần bản giấy |
 
 ---
+
+## Chu kỳ dùng ngắn — chuẩn bị sẵn cho người gọi lại
+
+Ngày 4 viên, lọ 30 viên, nên **một lọ hết trong 7,5 ngày**. Hai hệ quả thật:
+
+**Khách sẽ phải mua lại sau khoảng 3 tuần.** Đó là cơ hội nếu có người theo dõi và gọi lại
+đúng lúc, nhưng là mất khách nếu không ai gọi. Nên đặt lịch gọi lại vào ngày thứ 18-20 kể
+từ lúc giao hàng.
+
+**1.560.000đ cho 3 tuần là con số khách sẽ cân nhắc** — khoảng 69.000đ một ngày. Người gọi
+lại nên chủ động đưa ra cách tính theo ngày trước, thay vì chờ khách tự nhẩm rồi thấy đắt.
+
+Và đừng để người gọi lại chữa cháy bằng cách hứa hiệu quả. Câu đó mới là câu làm hỏng cả
+chiến dịch, vì kịch bản chốt đơn cũng tính là nội dung quảng cáo.
 
 ## Gợi ý A/B test
 
@@ -166,8 +194,9 @@ có người hứa hẹn lại dễ tin hơn.
 (con cái kể về bố). Đo **tỉ lệ xem đến giây 10**. Với tiểu đêm, Hook C đáng để ý: người
 mua nhiều khi là con cái chứ không phải chính các bác.
 
-**Vòng 2 — lý do tin.** Lấy hook thắng, thử nhấn *kim anh tử, thỏ ty tử* (vị thuốc nam quen)
-so với nhấn *nhà máy đạt chuẩn GMP*. Đo **số bình luận ĐÊM / 1000 lượt xem**.
+**Vòng 2 — cách nói giá.** Lấy hook thắng, thử ba bản: hiện "1.560.000đ / 3 lọ", hiện
+"khoảng 69.000đ một ngày", và bỏ hẳn giá khỏi video. Đo **số bình luận ĐÊM / 1000 lượt xem**
+và **số đơn chốt được** — bỏ giá thường cho nhiều liên hệ hơn nhưng chất lượng thấp hơn.
 
 **Vòng 3 — CTA.** "Bình luận chữ ĐÊM" vs "để lại số điện thoại". Đo **số người gọi lại được
 thật**, không đo số bình luận.
