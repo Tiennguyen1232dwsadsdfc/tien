@@ -217,3 +217,18 @@ tfoot .col-check, tfoot .col-tt, tfoot .col-acc { background: var(--head); }
 
 /* Mã số thuế */
 .tax-none { display: inline-block; padding: 2px 9px; border-radius: 999px; background: var(--warn-soft); color: var(--warn); font-size: 12px; font-weight: 600; white-space: nowrap; }
+
+/* Hộp thoại giới hạn chi tiêu */
+.cap-card { width: 560px; }
+.cap-name { font-weight: 700; font-size: 15px; margin-bottom: 4px; }
+.cap-info { font-size: 13px; margin-bottom: 14px; }
+.cap-row { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: 13.5px; }
+.cap-input { display: flex; align-items: center; gap: 10px; }
+.cap-input input { flex: 1; padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--r-sm); font: inherit; font-size: 16px; font-weight: 600; background: var(--surface); color: var(--ink); }
+.cap-input input:focus { outline: 2px solid var(--accent); border-color: transparent; }
+.cap-hint { font-size: 12.5px; margin-top: 8px; }
+.cap-msg { margin-top: 12px; padding: 10px 14px; border-radius: var(--r-md); background: var(--accent-soft); color: var(--accent-ink); font-size: 13px; font-weight: 500; }
+.cap-msg.error { background: var(--danger-soft); color: var(--danger); }
+.modal-foot .spacer { flex: 1; }
+.btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
+.btn.danger:hover { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }

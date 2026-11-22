@@ -268,23 +268,71 @@ function doDownloadInvoices() {
 }
 
 // ==== Đặt giới hạn chi tiêu (spend cap) ====
+let CAP_ACC = null;
 function setupSpendCapMenu() {
   $('rows').addEventListener('click', e => {
     const btn = e.target.closest('.setlim');
     if (!btn) return;
     const acc = currentAccounts().find(a => a.id === btn.dataset.id);
     if (!acc) return;
-    const cur = acc.currency;
-    const input = prompt(`Đặt giới hạn chi tiêu cho "${acc.name}" (${cur}).\nĐể trống hoặc 0 = bỏ giới hạn:`, acc.spendCap == null ? '' : acc.spendCap);
-    if (input === null) return;
-    const val = Number(String(input).replace(/[^0-9.]/g, '')) || 0;
-    const capMinor = val <= 0 ? 0 : (ZERO_DEC.has(cur) ? Math.round(val) : Math.round(val * 100));
-    showNotice('Đang đặt giới hạn chi tiêu…');
-    chrome.runtime.sendMessage({ type: 'setSpendCap', id: acc.id, capMinor }, res => {
-      if (!res || !res.ok) { showNotice((res && res.error) || 'Đặt giới hạn thất bại', true); return; }
-      acc.spendCap = val <= 0 ? null : val;
-      hideNotice(); render();
-    });
+    openCapModal(acc);
+  });
+  $('capClose').addEventListener('click', () => $('capModal').hidden = true);
+  $('capCancel').addEventListener('click', () => $('capModal').hidden = true);
+  $('capSave').addEventListener('click', () => {
+    if (!CAP_ACC) return;
+    const cur = CAP_ACC.currency;
+    const val = Number(String($('capInput').value).replace(/[^0-9.]/g, '')) || 0;
+    if (val <= 0) { doSpendCap(CAP_ACC, 'remove', 0); return; }
+    doSpendCap(CAP_ACC, 'set', ZERO_DEC.has(cur) ? Math.round(val) : Math.round(val * 100));
+  });
+  $('capRemove').addEventListener('click', () => { if (CAP_ACC) doSpendCap(CAP_ACC, 'remove', 0); });
+  $('capReset').addEventListener('click', () => {
+    if (!CAP_ACC) return;
+    if (!confirm(`Đặt lại số đã tiêu (tính vào giới hạn) của "${CAP_ACC.name}" về 0?\nMức giới hạn giữ nguyên, tài khoản được tiêu tiếp từ đầu.`)) return;
+    doSpendCap(CAP_ACC, 'reset', 0);
+  });
+  $('capInput').addEventListener('keydown', e => { if (e.key === 'Enter') $('capSave').click(); });
+}
+function openCapModal(acc) {
+  CAP_ACC = acc;
+  const cur = acc.currency;
+  $('capName').textContent = `${acc.name} · ${acc.accountId}`;
+  $('capInfo').innerHTML = `Giới hạn hiện tại: <b>${acc.spendCap != null ? fmtCur(acc.spendCap, cur) + ' ' + cur : 'chưa đặt'}</b>`
+    + (acc.amountSpent != null ? ` · Đã tiêu tính vào giới hạn: <b>${fmtCur(acc.amountSpent, cur)} ${cur}</b>` : '')
+    + (acc.dailyLimit ? ` · Meta cho tiêu tối đa <b>${fmtCur(acc.dailyLimit, cur)} ${cur}/ngày</b>` : '');
+  $('capInput').value = acc.spendCap == null ? '' : acc.spendCap;
+  $('capUnit').textContent = cur;
+  $('capRemove').disabled = acc.spendCap == null;
+  $('capReset').disabled = acc.spendCap == null;
+  $('capMsg').hidden = true;
+  $('capModal').hidden = false;
+  setTimeout(() => { $('capInput').focus(); $('capInput').select(); }, 50);
+}
+function doSpendCap(acc, action, capMinor) {
+  const msg = $('capMsg'); msg.hidden = false; msg.className = 'cap-msg';
+  msg.textContent = action === 'remove' ? 'Đang gỡ giới hạn…' : action === 'reset' ? 'Đang đặt lại số đã tiêu…' : 'Đang đặt giới hạn…';
+  ['capSave', 'capRemove', 'capReset'].forEach(k => $(k).disabled = true);
+  chrome.runtime.sendMessage({ type: 'setSpendCap', id: acc.id, capMinor, action }, res => {
+    ['capSave', 'capRemove', 'capReset'].forEach(k => $(k).disabled = false);
+    if (!res || !res.ok) {
+      const err = (res && res.error) || 'Thao tác thất bại';
+      msg.className = 'cap-msg error';
+      msg.textContent = 'Facebook từ chối: ' + err
+        + (action === 'set' ? ' — Nếu Facebook đòi giới hạn phải lớn hơn số đã tiêu, bấm "Đặt lại số đã tiêu" rồi đặt lại; hoặc bấm "Gỡ giới hạn" trước.' : '');
+      return;
+    }
+    const d = res.data || {};
+    if (action === 'remove') acc.spendCap = null;
+    else if (action === 'set') acc.spendCap = d.spendCap != null ? d.spendCap : (ZERO_DEC.has(acc.currency) ? capMinor : capMinor / 100);
+    else if (d.spendCap !== undefined && d.spendCap !== null) acc.spendCap = d.spendCap;
+    if (d.amountSpent != null) acc.amountSpent = d.amountSpent;
+    render();
+    $('capModal').hidden = true;
+    showNotice(action === 'remove' ? `Đã gỡ giới hạn chi tiêu của "${acc.name}".`
+      : action === 'reset' ? `Đã đặt lại số đã tiêu của "${acc.name}" về 0 (giới hạn giữ nguyên).`
+      : `Đã đặt giới hạn chi tiêu ${fmtCur(acc.spendCap, acc.currency)} ${acc.currency} cho "${acc.name}".`);
+    setTimeout(hideNotice, 5000);
   });
 }
 
@@ -445,7 +493,9 @@ function onPresetChange() {
   const today = new Date();
   const day = n => { const d = new Date(today); d.setDate(d.getDate() + n); return d; };
   let since, until = ymd(today), label;
-  if (v === 'all') { setRange(null); return; }
+  // "Toàn bộ": hỏi báo cáo chi tiêu trọn đời của Facebook (date_preset=maximum). KHÔNG dùng
+  // amount_spent vì trường đó bị về 0 mỗi lần "đặt lại" giới hạn chi tiêu -> không phải tổng thật.
+  if (v === 'all') { setRange({ since: null, until: null, preset: 'all', label: 'toàn bộ từ trước đến nay' }); return; }
   if (v === 'today') { since = ymd(today); label = 'hôm nay'; }
   if (v === 'yesterday') { since = until = ymd(day(-1)); label = 'hôm qua'; }
   if (v === '7d') { since = ymd(day(-6)); label = '7 ngày qua'; }
@@ -478,6 +528,7 @@ function spent(a) { if (!RANGE) return a.amountSpent; return a.id in SPEND ? SPE
 // Chú thích ô Tổng tiêu: ngày thực tế đã hỏi Facebook cho TK này + múi giờ TK.
 function spentTip(a) {
   if (!RANGE) return 'Tổng tiêu trọn đời của tài khoản';
+  if (RANGE.preset === 'all') return 'Tổng chi tiêu trọn đời theo báo cáo Facebook (date_preset=maximum, tối đa 37 tháng gần nhất — cùng cách tính với Ads Manager "Toàn thời gian")';
   const r = SPEND_RANGES[a.id];
   const d = r ? (r.since === r.until ? dmy(r.since) : `${dmy(r.since)}–${dmy(r.until)}`) : RANGE.label;
   return `Chi tiêu ${d} theo múi giờ TK${a.timezone ? ' (' + a.timezone + ')' : ''} — cùng cách tính với Ads Manager`;

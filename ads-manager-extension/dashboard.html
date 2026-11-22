@@ -129,6 +129,31 @@
   </section>
 </div>
 
+<div id="capModal" class="modal" hidden>
+  <div class="modal-card cap-card">
+    <div class="modal-head">
+      <h2>Giới hạn chi tiêu cho tài khoản</h2>
+      <button class="icon-x" id="capClose" title="Đóng">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="cap-name" id="capName"></div>
+      <div class="cap-info muted" id="capInfo"></div>
+      <label class="cap-row">Giới hạn mới
+        <span class="cap-input"><input id="capInput" type="text" inputmode="numeric" placeholder="VD: 5000000"><span id="capUnit" class="muted">VND</span></span>
+      </label>
+      <div class="cap-hint muted">Quảng cáo tạm dừng khi tổng chi tiêu chạm mức này. Để trống hoặc 0 rồi Lưu cũng là gỡ giới hạn.</div>
+      <div id="capMsg" class="cap-msg" hidden></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn danger" id="capRemove" title="Bỏ hẳn giới hạn chi tiêu">Gỡ giới hạn</button>
+      <button class="btn" id="capReset" title="Đưa số đã tiêu (tính vào giới hạn) về 0, giữ nguyên mức giới hạn">Đặt lại số đã tiêu</button>
+      <span class="spacer"></span>
+      <button class="btn" id="capCancel">Huỷ</button>
+      <button class="btn primary" id="capSave">Lưu giới hạn</button>
+    </div>
+  </div>
+</div>
+
 <div id="invoiceModal" class="modal" hidden>
   <div class="modal-card">
     <div class="modal-head">

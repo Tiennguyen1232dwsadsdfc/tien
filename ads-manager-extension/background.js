@@ -73,7 +73,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       renameAccount(msg.id, msg.name).then(d => sendResponse({ ok: true, data: d })).catch(e => sendResponse({ ok: false, error: e.message }));
       return true;
     case 'setSpendCap':
-      setSpendCap(msg.id, msg.capMinor).then(d => sendResponse({ ok: true, data: d })).catch(e => sendResponse({ ok: false, error: e.message }));
+      setSpendCap(msg.id, msg.capMinor, msg.action).then(d => sendResponse({ ok: true, data: d })).catch(e => sendResponse({ ok: false, error: e.message }));
       return true;
     case 'downloadInvoices':
       downloadInvoices(msg.items, msg.start, msg.end, msg.report).then(d => sendResponse({ ok: true, data: d })).catch(e => sendResponse({ ok: false, error: e.message }));
@@ -120,7 +120,11 @@ async function graphPost(path, params, token) {
   const body = new URLSearchParams(Object.assign({ access_token: token }, params));
   const res = await fetch(`${GRAPH}/${path}`, { method: 'POST', body });
   const json = await res.json();
-  if (json.error) { const e = new Error(json.error.message || 'Lỗi Graph API'); e.code = json.error.code; throw e; }
+  if (json.error) {
+    // error_user_msg: câu giải thích của Facebook (vd. lý do không đặt được giới hạn) — ưu tiên hiện cho người dùng
+    const e = new Error(json.error.error_user_msg || json.error.message || 'Lỗi Graph API');
+    e.code = json.error.code; e.detail = json.error.message; throw e;
+  }
   return json;
 }
 
@@ -138,21 +142,46 @@ async function renameAccount(id, name) {
 }
 
 // Đặt giới hạn chi tiêu (spend_cap) cho tài khoản. capMinor tính theo đơn vị nhỏ
-// nhất của tiền tệ TK (VND: đồng; USD: cent). capMinor = 0 nghĩa là bỏ giới hạn.
-async function setSpendCap(id, capMinor) {
+// nhất của tiền tệ TK (VND: đồng; USD: cent).
+//   action = 'set'    : đặt giới hạn mới = capMinor
+//   action = 'remove' : gỡ giới hạn (thử lần lượt các cách Facebook chấp nhận)
+//   action = 'reset'  : đặt lại số đã tiêu tính vào giới hạn về 0, giữ nguyên mức giới hạn
+async function setSpendCap(id, capMinor, action) {
   return withToken(async token => {
-    await graphPost(id, { spend_cap: String(capMinor) }, token);
+    action = action || (capMinor > 0 ? 'set' : 'remove');
+    let how = action;
+    if (action === 'reset') {
+      await graphPost(id, { spend_cap_action: 'reset' }, token);
+    } else if (action === 'remove') {
+      const tries = [{ spend_cap_action: 'delete' }, { spend_cap: '0' }, { spend_cap_action: 'reset', spend_cap: '0' }];
+      let lastErr = null;
+      for (const prm of tries) {
+        try { await graphPost(id, prm, token); how = 'remove:' + JSON.stringify(prm); lastErr = null; break; } catch (e) { lastErr = e; }
+      }
+      if (lastErr) throw lastErr;
+    } else {
+      await graphPost(id, { spend_cap: String(capMinor) }, token);
+    }
+    // Đọc lại từ Facebook để chắc chắn giá trị thật sau khi đổi
+    let capNow = null, spentNow = null;
+    try {
+      const j = await graphGet(`${id}?fields=spend_cap,amount_spent,currency`, token);
+      const cur = j.currency || 'VND';
+      capNow = money(j.spend_cap, cur); spentNow = money(j.amount_spent, cur);
+      if (!(capNow > 0)) capNow = null;
+    } catch (_) {}
     const { lastData } = await chrome.storage.local.get('lastData');
     if (lastData && lastData.accounts) {
       const a = lastData.accounts.find(x => x.id === id);
       if (a) {
         const cur = a.currency;
-        const major = capMinor > 0 ? (ZERO_DECIMAL.has(cur) ? capMinor : capMinor / 100) : null;
-        a.spendCap = major;
+        if (capNow !== null || action === 'remove') a.spendCap = capNow;
+        else if (action === 'set') a.spendCap = ZERO_DECIMAL.has(cur) ? capMinor : capMinor / 100;
+        if (spentNow !== null) a.amountSpent = spentNow;
         await chrome.storage.local.set({ lastData });
       }
     }
-    return { id, capMinor };
+    return { id, action, how, spendCap: capNow, amountSpent: spentNow };
   });
 }
 
@@ -615,11 +644,18 @@ async function loadSpend(since, until, preset) {
     const CHUNK = 8;
     for (let i = 0; i < accs.length; i += CHUNK) {
       await Promise.all(accs.slice(i, i + CHUNK).map(async a => {
-        const r = (preset && a.timezone && rangeForTz(preset, a.timezone, now)) || { since, until };
-        ranges[a.id] = r;
-        const timeRange = encodeURIComponent(JSON.stringify(r));
+        let q;
+        if (preset === 'all') {
+          // Trọn đời: Facebook chỉ cho tối đa 37 tháng gần nhất (date_preset=maximum)
+          ranges[a.id] = { since: 'maximum', until: 'maximum' };
+          q = 'date_preset=maximum';
+        } else {
+          const r = (preset && a.timezone && rangeForTz(preset, a.timezone, now)) || { since, until };
+          ranges[a.id] = r;
+          q = 'time_range=' + encodeURIComponent(JSON.stringify(r));
+        }
         try {
-          const j = await graphGet(`${a.id}/insights?fields=spend&level=account&time_range=${timeRange}`, token);
+          const j = await graphGet(`${a.id}/insights?fields=spend&level=account&${q}`, token);
           spend[a.id] = j.data && j.data[0] && j.data[0].spend !== undefined ? Number(j.data[0].spend) : 0;
         } catch (_) { spend[a.id] = null; }
       }));
