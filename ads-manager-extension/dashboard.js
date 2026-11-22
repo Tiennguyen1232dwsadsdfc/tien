@@ -94,6 +94,11 @@ const COLUMNS = [
     cell: a => a.payment
       ? `<span class="trunc" title="${esc(a.payment)}">${esc(a.payment)}</span>`
       : '<span class="muted" title="Facebook không trả thông tin thẻ: TK chưa thêm phương thức thanh toán, hoặc bạn không có quyền xem tài chính trong BM sở hữu TK này">Chưa có thẻ</span>' },
+  { key: 'taxId', label: 'Mã số thuế', sort: 'taxId', w: 150,
+    // Lấy từ "Thông tin doanh nghiệp" trên trang Thanh toán của TK (trường tax_id).
+    cell: a => a.taxId
+      ? `<span class="verified" title="${esc(taxTip(a))}">✓ ${esc(a.taxId)}</span>`
+      : (a.taxKnown ? `<span class="tax-none" title="${esc(taxTip(a))}">Chưa có MST</span>` : '<span class="muted" title="Facebook không trả trường mã số thuế cho tài khoản này">—</span>') },
   { key: 'nextBill', label: 'Ngày lập hóa đơn', sort: 'nextBill', w: 130, cell: a => a.nextBill ? shortDate(a.nextBill) : '' },
   { key: 'hiddenAdmins', label: 'Quản trị viên ẩn', num: true, sort: 'hiddenAdmins', w: 120, cell: a => a.hiddenAdmins == null ? '' : a.hiddenAdmins },
   { key: 'timezone', label: 'Múi giờ', sort: 'timezone', w: 140, cell: a => esc(a.timezone || '') },
@@ -126,6 +131,7 @@ async function init() {
   $('reload').addEventListener('click', () => { load(true); if (SUB === 'bm') loadBM(true); if (SUB === 'page') loadPages(); });
   $('search').addEventListener('input', render);
   $('statusFilter').addEventListener('change', render);
+  $('taxFilter').addEventListener('change', render);
   $('exportCsv').addEventListener('click', exportCsv);
   $('datePreset').addEventListener('change', onPresetChange);
   $('applyDate').addEventListener('click', applyCustomRange);
@@ -488,11 +494,22 @@ function sortValue(a, key) {
   if (key === 'createdTime') return a.createdTime ? Date.parse(a.createdTime) : null;
   return a[key];
 }
+const TAX_STATUS_VI = { 0: 'Chưa rõ trạng thái', 1: 'Không yêu cầu MST', 2: 'Facebook yêu cầu bổ sung MST', 3: 'Đã gửi MST', 4: 'MST không xác thực được', 5: 'Tài khoản cá nhân' };
+function taxTip(a) {
+  const p = [];
+  if (a.bizName) p.push('Doanh nghiệp: ' + a.bizName);
+  if (a.taxType) p.push('Loại: ' + a.taxType);
+  if (a.taxStatus != null && TAX_STATUS_VI[a.taxStatus]) p.push(TAX_STATUS_VI[a.taxStatus]);
+  return p.join(' · ') || (a.taxId ? 'Đã khai mã số thuế' : 'Tài khoản chưa khai mã số thuế trong Thông tin doanh nghiệp');
+}
 function visibleAccounts() {
   const q = $('search').value.trim().toLowerCase();
   const st = $('statusFilter').value;
+  const tf = $('taxFilter').value;
   let rows = currentAccounts().filter(a => {
     if (st && a.statusKind !== st) return false;
+    if (tf === 'has' && !a.taxId) return false;
+    if (tf === 'none' && (a.taxId || !a.taxKnown)) return false;
     if (!q) return true;
     return (a.name || '').toLowerCase().includes(q) || String(a.accountId || '').includes(q) || (NOTES[a.id] || '').toLowerCase().includes(q);
   });
@@ -531,7 +548,7 @@ function render() {
     if (RESIZING || Date.now() - JUST_RESIZED_AT < 250) return;
     const key = th.dataset.sort;
     if (SORT.key === key) SORT.dir = -SORT.dir;
-    else { SORT.key = key; SORT.dir = ['name', 'statusLabel', 'disableReason', 'payment', 'accountType', 'timezone', 'currency', 'role'].includes(key) ? 1 : -1; }
+    else { SORT.key = key; SORT.dir = ['name', 'statusLabel', 'disableReason', 'payment', 'accountType', 'timezone', 'currency', 'role', 'taxId'].includes(key) ? 1 : -1; }
     render();
   }));
   $('head-row').querySelectorAll('.resizer').forEach(rz => rz.addEventListener('mousedown', startResize));
@@ -577,7 +594,9 @@ function render() {
     return `<td class="${c.cls || ''} ${c.num ? 'num' : ''}">${html}</td>`;
   }).join('');
 
-  $('foot-note').textContent = (RANGE ? `Chi tiêu: ${RANGE.label} · ` : '') + (src && src.fetchedAt ? 'Cập nhật: ' + new Date(src.fetchedAt).toLocaleString('vi-VN') : '');
+  const all = currentAccounts(), nHas = all.filter(a => a.taxId).length, nNone = all.filter(a => !a.taxId && a.taxKnown).length;
+  const taxTxt = (nHas || nNone) ? ` · MST: ${nHas} đã có, ${nNone} chưa có` : '';
+  $('foot-note').textContent = (RANGE ? `Chi tiêu: ${RANGE.label} · ` : '') + (src && src.fetchedAt ? 'Cập nhật: ' + new Date(src.fetchedAt).toLocaleString('vi-VN') : '') + taxTxt;
 }
 
 // ==== Bảng Business Manager & Page (có sắp xếp khi bấm tiêu đề) ====
@@ -695,6 +714,7 @@ function csvCell(c, a) {
     case 'spent': return spent(a) ?? '';
     case 'accountType': return csv(a.accountType || '');
     case 'payment': return csv(a.payment || '');
+    case 'taxId': return a.taxId ? `="${a.taxId}"` : (a.taxKnown ? 'Chưa có MST' : '');
     case 'nextBill': return a.nextBill ? shortDate(a.nextBill) : '';
     case 'hiddenAdmins': return a.hiddenAdmins ?? '';
     case 'timezone': return csv(a.timezone || '');

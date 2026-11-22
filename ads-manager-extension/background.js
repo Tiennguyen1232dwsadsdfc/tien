@@ -16,16 +16,18 @@ const ACC_FIELDS_BASE = [
   'funding_source_details{id,display_string,type}', 'timezone_name', 'adtrust_dsl', 'tasks', 'created_time'
 ];
 // Trường có thể không tồn tại tùy version/tài khoản — dò trước khi dùng để không vỡ cả request.
-const ACC_FIELDS_RISKY = ['is_prepay_account', 'users.summary(true)', 'business{id,name}', 'owner'];
+// tax_id* / business_name: thông tin doanh nghiệp + mã số thuế (MST) khai trên trang Thanh toán.
+const ACC_FIELDS_RISKY = ['is_prepay_account', 'users.summary(true)', 'business{id,name}', 'owner', 'tax_id', 'tax_id_status', 'tax_id_type', 'business_name'];
+const FIELD_SUPPORT_V = 2; // tăng khi thêm trường vào ACC_FIELDS_RISKY để dò lại trên máy đã cài
 
 async function supportedFields(token) {
-  const { fieldSupport } = await chrome.storage.local.get('fieldSupport');
-  if (fieldSupport) return fieldSupport;
+  const { fieldSupport, fieldSupportV } = await chrome.storage.local.get(['fieldSupport', 'fieldSupportV']);
+  if (fieldSupport && fieldSupportV === FIELD_SUPPORT_V) return fieldSupport;
   const ok = [];
   for (const f of ACC_FIELDS_RISKY) {
     try { await graphGet(`me/adaccounts?fields=${encodeURIComponent(f)}&limit=1`, token); ok.push(f); } catch (_) {}
   }
-  await chrome.storage.local.set({ fieldSupport: ok });
+  await chrome.storage.local.set({ fieldSupport: ok, fieldSupportV: FIELD_SUPPORT_V });
   return ok;
 }
 
@@ -704,6 +706,12 @@ function normalize(a) {
     hiddenAdmins: a.users && a.users.summary ? a.users.summary.total_count : null,
     nextBill: null,
     timezone: a.timezone_name || '',
+    // Mã số thuế khai trong "Thông tin doanh nghiệp" (trang Thanh toán). taxKnown=false: FB không trả trường.
+    taxId: a.tax_id ? String(a.tax_id).trim() : '',
+    taxKnown: 'tax_id' in a,
+    taxStatus: a.tax_id_status === undefined || a.tax_id_status === null ? null : Number(a.tax_id_status),
+    taxType: a.tax_id_type || '',
+    bizName: a.business_name || '',
     currency: cur,
     role: tasks.includes('MANAGE') ? 'Quản trị viên' : (tasks.length ? 'Nhà quảng cáo' : '—'),
     createdTime: a.created_time || null

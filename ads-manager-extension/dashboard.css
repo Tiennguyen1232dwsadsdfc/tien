@@ -214,3 +214,6 @@ tfoot .col-check, tfoot .col-tt, tfoot .col-acc { background: var(--head); }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #C8D3CC; border-radius: 999px; border: 2px solid var(--surface); }
 ::-webkit-scrollbar-thumb:hover { background: #A9B8AF; }
+
+/* Mã số thuế */
+.tax-none { display: inline-block; padding: 2px 9px; border-radius: 999px; background: var(--warn-soft); color: var(--warn); font-size: 12px; font-weight: 600; white-space: nowrap; }
