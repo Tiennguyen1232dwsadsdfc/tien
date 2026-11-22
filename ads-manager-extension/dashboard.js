@@ -89,19 +89,23 @@ const COLUMNS = [
   { key: 'spent', label: 'Tổng tiêu', num: true, sort: 'spent', dyn: true, sumSpent: true, w: 120,
     cell: a => { const sp = spent(a); return sp === undefined ? '<span class="muted">…</span>' : (sp === null ? '<span class="muted">lỗi</span>' : `<span title="${esc(spentTip(a))}">${mval(a, sp)}</span>`); } },
   { key: 'accountType', label: 'Loại tài khoản', sort: 'accountType', w: 115, cell: a => esc(a.accountType || '') },
-  { key: 'payment', label: 'Thẻ thanh toán', sort: 'payment', w: 240,
-    // Hiện TẤT CẢ phương thức (thẻ mặc định in đậm, thẻ phụ bên dưới). Trống = Facebook không trả
-    // thông tin thẻ (TK chưa thêm thẻ, hoặc không có quyền xem tài chính trong BM chủ).
+  { key: 'payment', label: 'Thẻ thanh toán', sort: 'payment', w: 270,
+    // Quy tắc hiển thị: mỗi dòng 1 phương thức, cùng cỡ chữ, 4 cột thẳng hàng
+    // [Loại] [Số đuôi / tên] [Hạn] [Chính|Phụ]. Dòng 1 luôn là thẻ mặc định (Chính).
+    // Trống = Facebook không trả thông tin thẻ (TK chưa thêm thẻ, hoặc không có quyền xem tài chính trong BM chủ).
     cell: a => {
-      const pms = a.paymentMethods || [];
-      if (pms.length) {
-        const tip = pms.map(p => (p.isDefault ? '★ ' : '') + p.label + (p.sub ? ' (' + p.sub + ')' : '')).join('\n');
-        return `<div class="pm-list" title="${esc(tip)}">` + pms.map(p =>
-          `<div class="pm ${p.isDefault ? 'pm-def' : ''}"><span class="trunc">${esc(p.label)}</span>${p.isDefault ? '<span class="pm-tag">Mặc định</span>' : ''}${p.sub ? `<span class="pm-sub">${esc(p.sub)}</span>` : ''}</div>`).join('') + '</div>';
-      }
-      return a.payment
-        ? `<span class="trunc" title="${esc(a.payment)}">${esc(a.payment)}</span>`
-        : '<span class="muted" title="Facebook không trả thông tin thẻ: TK chưa thêm phương thức thanh toán, hoặc bạn không có quyền xem tài chính trong BM sở hữu TK này">Chưa có thẻ</span>';
+      let pms = a.paymentMethods || [];
+      if (!pms.length && a.payment) pms = [{ kind: 'card', label: a.payment, sub: '', isDefault: true }];
+      if (!pms.length) return '<span class="muted" title="Facebook không trả thông tin thẻ: TK chưa thêm phương thức thanh toán, hoặc bạn không có quyền xem tài chính trong BM sở hữu TK này">Chưa có thẻ</span>';
+      const tip = pms.map((p, i) => `${p.isDefault ? 'Chính' : 'Phụ ' + i}: ${p.label}${p.sub ? ' (' + p.sub + ')' : ''}`).join('\n');
+      let n = 0;
+      return `<div class="pm-grid" title="${esc(tip)}">` + pms.map(p => {
+        const { brand, num } = pmParts(p);
+        const exp = (p.sub.match(/HH\s*([\d/]+)/) || [])[1] || '';
+        const warn = /chưa xác minh/.test(p.sub) ? ' <span class="pm-warn" title="Thẻ chưa xác minh">!</span>' : '';
+        const badge = p.isDefault ? '<span class="pm-badge chinh">Chính</span>' : `<span class="pm-badge phu">Phụ ${++n}</span>`;
+        return `<span class="pm-brand">${esc(brand)}</span><span class="pm-num">${esc(num)}${warn}</span><span class="pm-exp">${esc(exp)}</span>${badge}`;
+      }).join('') + '</div>';
     } },
   { key: 'taxId', label: 'Mã số thuế', sort: 'taxId', w: 150,
     // Lấy từ "Thông tin doanh nghiệp" trên trang Thanh toán của TK (trường tax_id).
@@ -553,6 +557,17 @@ function sortValue(a, key) {
   if (key === 'note') return NOTES[a.id] || '';
   if (key === 'createdTime') return a.createdTime ? Date.parse(a.createdTime) : null;
   return a[key];
+}
+// Tách "Visa ···· 8010" -> { brand: 'Visa', num: '···· 8010' }; PayPal/ví -> loại + chi tiết
+function pmParts(p) {
+  const label = String(p.label || '').trim();
+  if (p.kind === 'paypal') return { brand: 'PayPal', num: label.replace(/^PayPal\s*/i, '') };
+  if (p.kind === 'debit') return { brand: 'Ghi nợ', num: label };
+  if (p.kind === 'token') return { brand: 'Ví', num: label };
+  if (p.kind === 'balance') return { brand: 'Số dư', num: label.replace(/^Số dư trả trước\s*·?\s*/, '') || 'trả trước' };
+  const m = label.match(/^(.*?)[\s·•*xX]*?(\d{4})$/);
+  if (m && m[1].trim()) return { brand: m[1].trim().replace(/[·•*]+$/, '').trim(), num: '···· ' + m[2] };
+  return { brand: label, num: '' };
 }
 const TAX_STATUS_VI = { 0: 'Chưa rõ trạng thái', 1: 'Không yêu cầu MST', 2: 'Facebook yêu cầu bổ sung MST', 3: 'Đã gửi MST', 4: 'MST không xác thực được', 5: 'Tài khoản cá nhân' };
 function taxTip(a) {
