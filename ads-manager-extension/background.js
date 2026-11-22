@@ -19,18 +19,28 @@ const ACC_FIELDS_BASE = [
 // tax_id* / business_name: thông tin doanh nghiệp + mã số thuế (MST) khai trên trang Thanh toán.
 // all_payment_methods: TẤT CẢ phương thức thanh toán của TK (thẻ chính + thẻ phụ, PayPal, ghi nợ, ví) — trường
 // nội bộ, token Ads Manager thường đọc được; funding_source_details chỉ cho thẻ mặc định.
-const ALL_PM = 'all_payment_methods{pm_credit_card{data{display_string,exp_month,exp_year,is_verified,credential_id}},payment_method_paypal{data{email_address,credential_id}},payment_method_direct_debits{data{display_string,status,credential_id}},payment_method_tokens{data{current_balance,type,credential_id}},payment_method_stored_balances{data{balance,credential_id}}}';
-const ACC_FIELDS_RISKY = ['is_prepay_account', 'users.summary(true)', 'business{id,name}', 'owner', 'tax_id', 'tax_id_status', 'tax_id_type', 'business_name', ALL_PM];
-const FIELD_SUPPORT_V = 3; // tăng khi thêm trường vào ACC_FIELDS_RISKY để dò lại trên máy đã cài
+// Thử từ đầy đủ -> gọn dần: bản nào Facebook chấp nhận thì dùng (một trường con lạ cũng làm hỏng cả request).
+const ALL_PM_VARIANTS = [
+  'all_payment_methods{pm_credit_card{data{display_string,exp_month,exp_year,is_verified,credential_id}},payment_method_paypal{data{email_address,credential_id}},payment_method_direct_debits{data{display_string,status,credential_id}},payment_method_tokens{data{current_balance,type,credential_id}},payment_method_stored_balances{data{balance,credential_id}}}',
+  'all_payment_methods{pm_credit_card{data{display_string,exp_month,exp_year,is_verified,credential_id}},payment_method_paypal{data{email_address}}}',
+  'all_payment_methods{pm_credit_card{data{display_string,exp_month,exp_year}}}',
+  'all_payment_methods'
+];
+const ACC_FIELDS_RISKY = ['is_prepay_account', 'users.summary(true)', 'business{id,name}', 'owner', 'tax_id', 'tax_id_status', 'tax_id_type', 'business_name'].concat(ALL_PM_VARIANTS);
+const FIELD_SUPPORT_V = 4; // tăng khi thêm trường vào ACC_FIELDS_RISKY để dò lại trên máy đã cài
 
 async function supportedFields(token) {
   const { fieldSupport, fieldSupportV } = await chrome.storage.local.get(['fieldSupport', 'fieldSupportV']);
   if (fieldSupport && fieldSupportV === FIELD_SUPPORT_V) return fieldSupport;
-  const ok = [];
+  const ok = [], errors = {};
+  let pmDone = false;
   for (const f of ACC_FIELDS_RISKY) {
-    try { await graphGet(`me/adaccounts?fields=${encodeURIComponent(f)}&limit=1`, token); ok.push(f); } catch (_) {}
+    const isPm = f.startsWith('all_payment_methods');
+    if (isPm && pmDone) continue; // đã có 1 biến thể danh sách thẻ chạy được
+    try { await graphGet(`me/adaccounts?fields=${encodeURIComponent(f)}&limit=1`, token); ok.push(f); if (isPm) pmDone = true; }
+    catch (e) { errors[f.split('{')[0]] = e.message; }
   }
-  await chrome.storage.local.set({ fieldSupport: ok, fieldSupportV: FIELD_SUPPORT_V });
+  await chrome.storage.local.set({ fieldSupport: ok, fieldSupportV: FIELD_SUPPORT_V, fieldErrors: errors });
   return ok;
 }
 
@@ -329,7 +339,10 @@ async function loadAccounts(forceToken) {
     const fields = await accFields(token);
     const raw = await fetchPaged('me/adaccounts', token, null, fields);
     const me = await graphGet('me?fields=name,id', token).catch(() => null);
-    return { fetchedAt: Date.now(), user: me, accounts: raw.map(normalize) };
+    // Facebook BỎ HẲN trường khi giá trị rỗng (vd. TK không có MST) -> "có hỗ trợ trường" phải lấy từ kết quả dò
+    const { fieldSupport = [], fieldErrors = {} } = await chrome.storage.local.get(['fieldSupport', 'fieldErrors']);
+    SUPPORT = { tax: fieldSupport.includes('tax_id'), pm: fieldSupport.some(f => f.startsWith('all_payment_methods')), pmError: fieldErrors.all_payment_methods || null };
+    return { fetchedAt: Date.now(), user: me, accounts: raw.map(normalize), support: SUPPORT };
   }, forceToken);
   await chrome.storage.local.set({ lastData: data });
   await updateAcctNames(data.accounts);
@@ -728,6 +741,7 @@ function paymentLabel(a) {
   return '';
 }
 
+let SUPPORT = { tax: false, pm: false, pmError: null };
 function normalize(a) {
   const cur = a.currency || 'VND';
   const threshold = a.adspaymentcycle && a.adspaymentcycle.data && a.adspaymentcycle.data[0]
@@ -770,7 +784,7 @@ function normalize(a) {
     timezone: a.timezone_name || '',
     // Mã số thuế khai trong "Thông tin doanh nghiệp" (trang Thanh toán). taxKnown=false: FB không trả trường.
     taxId: a.tax_id ? String(a.tax_id).trim() : '',
-    taxKnown: 'tax_id' in a,
+    taxKnown: SUPPORT.tax || 'tax_id' in a,
     taxStatus: a.tax_id_status === undefined || a.tax_id_status === null ? null : Number(a.tax_id_status),
     taxType: a.tax_id_type || '',
     bizName: a.business_name || '',

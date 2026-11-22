@@ -436,7 +436,7 @@ function load(forceToken) {
     btn.disabled = false; btn.textContent = 'Tải lại dữ liệu'; showLoading(false);
     if (chrome.runtime.lastError) { showNotice(chrome.runtime.lastError.message, true); return; }
     if (!res.ok) { showNotice(res.error, true); return; }
-    hideNotice(); DATA = res.data; render(); if (RANGE) loadSpend();
+    hideNotice(); DATA = res.data; render(); if (RANGE) loadSpend(); else showSupportNotice();
   });
 }
 function loadBM(reprobe) {
@@ -552,11 +552,16 @@ function loadSpend() {
   chrome.runtime.sendMessage({ type: 'loadSpend', since: RANGE.since, until: RANGE.until, preset: RANGE.preset || null }, res => {
     if (RANGE !== asked) return;
     if (!res || !res.ok) { showNotice((res && res.error) || 'Lỗi tải chi tiêu', true); return; }
-    hideNotice();
+    hideNotice(); showSupportNotice();
     SPEND = res.data && res.data.spend ? res.data.spend : (res.data || {});
     SPEND_RANGES = res.data && res.data.ranges ? res.data.ranges : {};
     render();
   });
+}
+// Chẩn đoán: Facebook không cho token này đọc danh sách thẻ -> nói rõ thay vì im lặng
+function showSupportNotice() {
+  const sp = (DATA && DATA.support) || null;
+  if (sp && sp.pm === false) showNotice('Facebook không cho đọc danh sách thẻ (thẻ chính + thẻ phụ) bằng token hiện tại' + (sp.pmError ? ' — ' + sp.pmError : '') + '. Cột Thẻ thanh toán chỉ hiện thẻ mặc định. Thử: mở Ads Manager (adsmanager.facebook.com) ở tab khác rồi bấm "Tải lại dữ liệu".');
 }
 function spent(a) { if (!RANGE) return a.amountSpent; return a.id in SPEND ? SPEND[a.id] : undefined; }
 // Chú thích ô Tổng tiêu: ngày thực tế đã hỏi Facebook cho TK này + múi giờ TK.
