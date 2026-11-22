@@ -62,6 +62,17 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     case 'bmProbe':
       onBmProbe(msg.probe, _sender && _sender.tab ? _sender.tab.id : null);
       return;
+    case 'pmProbe':
+      onPmProbe(msg, _sender && _sender.tab ? _sender.tab.id : null);
+      return;
+    case 'scanPM':
+      scanPM(msg.ids || []).catch(() => {});
+      sendResponse({ ok: true });
+      return;
+    case 'stopScanPM':
+      PMSCAN.stop = true;
+      sendResponse({ ok: true });
+      return;
     case 'scanBM':
       scanBM(msg.ids || []).catch(() => {});
       sendResponse({ ok: true });
@@ -342,7 +353,14 @@ async function loadAccounts(forceToken) {
     // Facebook BỎ HẲN trường khi giá trị rỗng (vd. TK không có MST) -> "có hỗ trợ trường" phải lấy từ kết quả dò
     const { fieldSupport = [], fieldErrors = {} } = await chrome.storage.local.get(['fieldSupport', 'fieldErrors']);
     SUPPORT = { tax: fieldSupport.includes('tax_id'), pm: fieldSupport.some(f => f.startsWith('all_payment_methods')), pmError: fieldErrors.all_payment_methods || null };
-    return { fetchedAt: Date.now(), user: me, accounts: raw.map(normalize), support: SUPPORT };
+    const { pmCache = {} } = await chrome.storage.local.get('pmCache');
+    const accounts = raw.map(a => {
+      const n = normalize(a), c = pmCache[n.id];
+      // Thẻ đọc từ trang Thanh toán là chính xác nhất -> ưu tiên (API thường chỉ có thẻ mặc định)
+      if (c && Array.isArray(c.methods) && (c.methods.length || !n.paymentMethods.length)) { n.paymentMethods = c.methods; n.paymentSource = 'page'; n.paymentAt = c.at; }
+      return n;
+    });
+    return { fetchedAt: Date.now(), user: me, accounts, support: SUPPORT };
   }, forceToken);
   await chrome.storage.local.set({ lastData: data });
   await updateAcctNames(data.accounts);
@@ -512,6 +530,67 @@ async function scanBM(ids) {
   } finally {
     if (bridgeFor != null && bridge != null) chrome.tabs.remove(bridge, () => void chrome.runtime.lastError);
     SCAN.running = false;
+    await report(null, true);
+  }
+}
+// ---- Danh sách thẻ đọc từ trang Thanh toán (pmCache[act_id]) ----
+// API thường chỉ trả thẻ mặc định; trang Thanh toán hiện đủ thẻ chính + phụ. billing.js đọc
+// mục "Phương thức thanh toán" trên trang đó và gửi về đây; loadAccounts ưu tiên dữ liệu này.
+const PMSCAN = { stop: false, running: false, waiting: {} };
+let PM_CHAIN = Promise.resolve();
+function onPmProbe(msg, tabId) {
+  PM_CHAIN = PM_CHAIN.then(async () => {
+    if (!msg || !msg.accountId || !Array.isArray(msg.methods)) return;
+    const id = 'act_' + String(msg.accountId).replace(/^act_/, '');
+    const { pmCache = {}, lastData } = await chrome.storage.local.get(['pmCache', 'lastData']);
+    pmCache[id] = { methods: msg.methods, at: Date.now() };
+    const upd = { pmCache };
+    if (lastData && lastData.accounts) {
+      const a = lastData.accounts.find(x => x.id === id);
+      if (a) { a.paymentMethods = msg.methods; a.paymentSource = 'page'; a.paymentAt = pmCache[id].at; upd.lastData = lastData; }
+    }
+    await chrome.storage.local.set(upd);
+    if (PMSCAN.waiting[id]) PMSCAN.waiting[id]();
+    else if (tabId != null && PMSCAN.waiting['tab:' + tabId]) PMSCAN.waiting['tab:' + tabId]();
+  }).catch(() => {});
+}
+function openBillingTab(id) {
+  const accId = String(id).replace(/^act_/, '');
+  const url = `https://business.facebook.com/latest/billing_hub/accounts/details/?asset_id=${accId}&placement=campaign_manager`;
+  return new Promise(resolve => {
+    chrome.tabs.create({ url, active: false }, tab => {
+      const tid = tab && tab.id; let fin = false;
+      const finish = () => {
+        if (fin) return; fin = true;
+        delete PMSCAN.waiting[id]; if (tid != null) delete PMSCAN.waiting['tab:' + tid];
+        setTimeout(() => { if (tid != null) chrome.tabs.remove(tid, () => void chrome.runtime.lastError); resolve(); }, 1200);
+      };
+      PMSCAN.waiting[id] = finish; if (tid != null) PMSCAN.waiting['tab:' + tid] = finish;
+      setTimeout(finish, 45000); // tab nền bị Chrome giảm tốc nên cho rộng thời gian
+    });
+  });
+}
+// Quét thẻ: mở ngầm trang Thanh toán từng TK (tab nền, không chuyển tab), đọc xong tự đóng,
+// nghỉ ngẫu nhiên 3–6s giữa các TK để không bị Facebook báo spam.
+async function scanPM(ids) {
+  if (PMSCAN.running) return;
+  PMSCAN.running = true; PMSCAN.stop = false;
+  const total = ids.length; let done = 0, hit = 0;
+  const report = (current, finished) => chrome.storage.local.set({ pmScan: { running: !finished, total, done, hit, current: current || null, at: Date.now() } });
+  await report(null, false);
+  try {
+    for (const id of ids) {
+      if (PMSCAN.stop) break;
+      await report(id, false);
+      const before = ((await chrome.storage.local.get('pmCache')).pmCache || {})[id];
+      await openBillingTab(id);
+      const after = ((await chrome.storage.local.get('pmCache')).pmCache || {})[id];
+      if (after && (!before || before.at !== after.at)) hit++;
+      done++;
+      if (!PMSCAN.stop && done < total) await sleep(rnd(3000, 6000));
+    }
+  } finally {
+    PMSCAN.running = false;
     await report(null, true);
   }
 }

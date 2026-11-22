@@ -97,7 +97,8 @@ const COLUMNS = [
       let pms = a.paymentMethods || [];
       if (!pms.length && a.payment) pms = [{ kind: 'card', label: a.payment, sub: '', isDefault: true }];
       if (!pms.length) return '<span class="muted" title="Facebook không trả thông tin thẻ: TK chưa thêm phương thức thanh toán, hoặc bạn không có quyền xem tài chính trong BM sở hữu TK này">Chưa có thẻ</span>';
-      const tip = pms.map((p, i) => `${p.isDefault ? 'Chính' : 'Phụ ' + i}: ${p.label}${p.sub ? ' (' + p.sub + ')' : ''}`).join('\n');
+      const tip = pms.map((p, i) => `${p.isDefault ? 'Chính' : 'Phụ ' + i}: ${p.label}${p.sub ? ' (' + p.sub + ')' : ''}`).join('\n')
+        + (a.paymentSource === 'page' ? `\nĐọc từ trang Thanh toán lúc ${new Date(a.paymentAt).toLocaleString('vi-VN')}` : '\nTừ API (có thể chỉ có thẻ mặc định) — bấm "Quét thẻ" để đọc đủ');
       let n = 0;
       return `<div class="pm-grid" title="${esc(tip)}">` + pms.map(p => {
         const { brand, num } = pmParts(p);
@@ -163,8 +164,16 @@ async function init() {
   setupSpendCapMenu();
 
   $('scanBmBtn').addEventListener('click', toggleScanBM);
-  chrome.storage.onChanged.addListener((ch, area) => { if (area === 'local' && ch.bmScan) onScanProgress(ch.bmScan.newValue); });
-  chrome.storage.local.get('bmScan', s => { if (s.bmScan && s.bmScan.running) onScanProgress(s.bmScan); });
+  $('scanPmBtn').addEventListener('click', toggleScanPM);
+  chrome.storage.onChanged.addListener((ch, area) => {
+    if (area !== 'local') return;
+    if (ch.bmScan) onScanProgress(ch.bmScan.newValue);
+    if (ch.pmScan) onPmScanProgress(ch.pmScan.newValue);
+  });
+  chrome.storage.local.get(['bmScan', 'pmScan'], s => {
+    if (s.bmScan && s.bmScan.running) onScanProgress(s.bmScan);
+    if (s.pmScan && s.pmScan.running) onPmScanProgress(s.pmScan);
+  });
 
   $('invoiceBtn').addEventListener('click', openInvoice);
   $('invClose').addEventListener('click', () => $('invoiceModal').hidden = true);
@@ -188,6 +197,7 @@ async function init() {
     $('foot-note').hidden = SUB !== 'ca-nhan';
     $('colBtn').style.display = SUB === 'ca-nhan' ? '' : 'none';
     $('scanBmBtn').style.display = SUB === 'bm' ? '' : 'none';
+    $('scanPmBtn').style.display = SUB === 'ca-nhan' ? '' : 'none';
     if (SUB === 'bm' && !BM) loadBM();
     if (SUB === 'page' && !PAGES) loadPages();
     render();
@@ -558,10 +568,37 @@ function loadSpend() {
     render();
   });
 }
-// Chẩn đoán: Facebook không cho token này đọc danh sách thẻ -> nói rõ thay vì im lặng
+// Chẩn đoán: Facebook không cho token này đọc danh sách thẻ -> gợi ý Quét thẻ
 function showSupportNotice() {
+  if (PM_SCANNING) return;
   const sp = (DATA && DATA.support) || null;
-  if (sp && sp.pm === false) showNotice('Facebook không cho đọc danh sách thẻ (thẻ chính + thẻ phụ) bằng token hiện tại' + (sp.pmError ? ' — ' + sp.pmError : '') + '. Cột Thẻ thanh toán chỉ hiện thẻ mặc định. Thử: mở Ads Manager (adsmanager.facebook.com) ở tab khác rồi bấm "Tải lại dữ liệu".');
+  const scanned = currentAccounts().filter(a => a.paymentSource === 'page').length;
+  if (sp && sp.pm === false && !scanned) showNotice('API Facebook chỉ trả thẻ mặc định cho token này. Bấm "Quét thẻ" để đọc đủ thẻ chính + thẻ phụ từ trang Thanh toán (tích chọn TK để quét riêng, không tích = quét các TK đang hiển thị).');
+}
+
+// ==== Quét thẻ: đọc mục "Phương thức thanh toán" trên trang Thanh toán của từng TK ====
+let PM_SCANNING = false;
+function toggleScanPM() {
+  if (PM_SCANNING) { chrome.runtime.sendMessage({ type: 'stopScanPM' }); showNotice('Đang dừng quét thẻ…'); return; }
+  const rows = SELECTED.size ? currentAccounts().filter(a => SELECTED.has(a.id)) : visibleAccounts();
+  if (!rows.length) { showNotice('Không có tài khoản nào để quét.', true); return; }
+  const ids = rows.map(a => a.id);
+  const mins = Math.ceil(ids.length * 10 / 60);
+  if (!confirm(`Quét thẻ của ${ids.length} tài khoản${SELECTED.size ? ' đã tích chọn' : ' đang hiển thị'}?\n\nTiện ích mở NGẦM lần lượt trang Thanh toán của từng TK trong tab nền (không chuyển tab của bạn), đọc mục "Phương thức thanh toán" đúng như Facebook hiển thị rồi tự đóng. Mỗi TK cách nhau vài giây để không bị báo spam.\n\nƯớc tính: ~${mins} phút. Bấm nút lần nữa để dừng; kết quả đã đọc được giữ lại.`)) return;
+  chrome.runtime.sendMessage({ type: 'scanPM', ids }, () => void chrome.runtime.lastError);
+}
+function onPmScanProgress(s) {
+  if (!s) return;
+  PM_SCANNING = !!s.running;
+  $('scanPmBtn').textContent = PM_SCANNING ? `Dừng quét thẻ (${s.done}/${s.total})` : 'Quét thẻ';
+  $('scanPmBtn').classList.toggle('primary', PM_SCANNING);
+  if (PM_SCANNING) {
+    const a = s.current ? currentAccounts().find(x => x.id === s.current) : null;
+    showNotice(`Đang quét thẻ: ${s.done}/${s.total} xong, đọc được ${s.hit}. Đang mở: ${a ? a.name : (s.current || '…')}`);
+    return;
+  }
+  showNotice(`Quét thẻ xong: đọc được ${s.hit}/${s.done} tài khoản. Đang cập nhật bảng…`);
+  load(false);
 }
 function spent(a) { if (!RANGE) return a.amountSpent; return a.id in SPEND ? SPEND[a.id] : undefined; }
 // Chú thích ô Tổng tiêu: ngày thực tế đã hỏi Facebook cho TK này + múi giờ TK.
