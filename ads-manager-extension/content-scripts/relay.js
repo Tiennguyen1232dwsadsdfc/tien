@@ -7,6 +7,7 @@ window.addEventListener('message', function (e) {
   try {
     if (d.__adsmgr_token) chrome.runtime.sendMessage({ type: 'capturedToken', token: d.__adsmgr_token });
     else if (d.__adsmgr_bmprobe) chrome.runtime.sendMessage({ type: 'bmProbe', probe: d.__adsmgr_bmprobe });
+    else if (d.__adsmgr_pmprobe) chrome.runtime.sendMessage({ type: 'pmGraph', probe: d.__adsmgr_pmprobe });
   } catch (err) { /* service worker chưa sẵn sàng — bỏ qua */ }
 });
 

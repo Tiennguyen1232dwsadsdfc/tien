@@ -584,7 +584,7 @@ function toggleScanPM() {
   if (!rows.length) { showNotice('Không có tài khoản nào để quét.', true); return; }
   const ids = rows.map(a => a.id);
   const mins = Math.ceil(ids.length * 10 / 60);
-  if (!confirm(`Quét thẻ của ${ids.length} tài khoản${SELECTED.size ? ' đã tích chọn' : ' đang hiển thị'}?\n\nTiện ích mở NGẦM lần lượt trang Thanh toán của từng TK trong tab nền (không chuyển tab của bạn), đọc mục "Phương thức thanh toán" đúng như Facebook hiển thị rồi tự đóng. Mỗi TK cách nhau vài giây để không bị báo spam.\n\nƯớc tính: ~${mins} phút. Bấm nút lần nữa để dừng; kết quả đã đọc được giữ lại.`)) return;
+  if (!confirm(`Quét thẻ của ${ids.length} tài khoản${SELECTED.size ? ' đã tích chọn' : ' đang hiển thị'}?\n\nLần đầu tiện ích mở NGẦM 1 trang Thanh toán (tab nền, không chuyển tab của bạn) để học cách Facebook lấy danh sách thẻ; các TK còn lại được hỏi thẳng bằng request ngầm, không mở trang (~1–2 giây/TK). Nếu Facebook từ chối thì mới mở từng trang (~10 giây/TK, tối đa ~${mins} phút).\n\nBấm nút lần nữa để dừng; kết quả đã đọc được giữ lại.`)) return;
   chrome.runtime.sendMessage({ type: 'scanPM', ids }, () => void chrome.runtime.lastError);
 }
 function onPmScanProgress(s) {
@@ -594,7 +594,7 @@ function onPmScanProgress(s) {
   $('scanPmBtn').classList.toggle('primary', PM_SCANNING);
   if (PM_SCANNING) {
     const a = s.current ? currentAccounts().find(x => x.id === s.current) : null;
-    showNotice(`Đang quét thẻ: ${s.done}/${s.total} xong, đọc được ${s.hit}. Đang mở: ${a ? a.name : (s.current || '…')}`);
+    showNotice(`Đang quét thẻ (${s.mode === 'api' ? 'hỏi ngầm, không mở trang' : 'mở ngầm trang Thanh toán'}): ${s.done}/${s.total} xong, đọc được ${s.hit}. Đang xử lý: ${a ? a.name : (s.current || '…')}`);
     return;
   }
   showNotice(`Quét thẻ xong: đọc được ${s.hit}/${s.done} tài khoản. Đang cập nhật bảng…`);

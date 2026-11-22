@@ -18,7 +18,18 @@
   }
 
   // ---- Dò trường ẩn của BM trên trang Cài đặt doanh nghiệp ----
-  var ON_BIZ = /business\.facebook\.com$/.test(location.hostname) && /settings|business_info|business_overview/.test(location.pathname + location.search);
+  var ON_BILL = /business\.facebook\.com$/.test(location.hostname) && /billing_hub/.test(location.pathname);
+  var ON_BIZ = (/business\.facebook\.com$/.test(location.hostname) && /settings|business_info|business_overview/.test(location.pathname + location.search)) || ON_BILL;
+  // Trang Thanh toán: phản hồi GraphQL nào chứa danh sách thẻ ("display_string":"Visa ···· 1234") thì gửi
+  // nguyên văn (kèm request) về service worker để bóc thẻ và học cách hỏi lại cho TK khác.
+  var PM_RE = /"display_string"\s*:\s*"[^"]*\d{4}"/;
+  var pmSent = 0;
+  function scanBilling(text, meta) {
+    if (!ON_BILL || pmSent >= 6 || typeof text !== 'string' || text.length > 3000000 || !PM_RE.test(text)) return;
+    pmSent++;
+    var acc = null; try { acc = new URLSearchParams(location.search).get('asset_id'); } catch (e) {}
+    try { window.postMessage({ __adsmgr_pmprobe: { accountId: acc, req: meta.raw ? { url: meta.url || null, body: meta.raw.length < 60000 ? meta.raw : null } : null, text: text } }, '*'); } catch (e) {}
+  }
   var KEY_RE = /"([A-Za-z_]*(?:limit|restrict|integrity|is_disabled)[A-Za-z_]*)"\s*:\s*(-?\d+(?:\.\d+)?|"(?:[^"\\]|\\.){0,80}"|true|false|null)/g;
   var sentKeys = {};
   function bizId() {
@@ -45,6 +56,7 @@
   var reqSent = false;
   function scanResp(text, meta) {
     if (typeof text !== 'string' || text.length > 4000000) return;
+    scanBilling(text, meta);
     if (!/limit|restrict|integrity|is_disabled/.test(text)) return;
     var keys = [], seen = {}, m, n = 0;
     KEY_RE.lastIndex = 0;

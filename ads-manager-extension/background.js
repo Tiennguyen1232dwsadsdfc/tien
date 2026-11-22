@@ -65,6 +65,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     case 'pmProbe':
       onPmProbe(msg, _sender && _sender.tab ? _sender.tab.id : null);
       return;
+    case 'pmGraph':
+      onPmGraph(msg.probe, _sender && _sender.tab ? _sender.tab.id : null);
+      return;
     case 'scanPM':
       scanPM(msg.ids || []).catch(() => {});
       sendResponse({ ok: true });
@@ -538,23 +541,107 @@ async function scanBM(ids) {
 // mục "Phương thức thanh toán" trên trang đó và gửi về đây; loadAccounts ưu tiên dữ liệu này.
 const PMSCAN = { stop: false, running: false, waiting: {} };
 let PM_CHAIN = Promise.resolve();
+// Lưu danh sách thẻ của 1 TK. dom=true: đọc từ giao diện (chắc nhất, ghi đè kết quả GraphQL).
+async function savePm(id, methods, dom) {
+  const { pmCache = {}, lastData } = await chrome.storage.local.get(['pmCache', 'lastData']);
+  const cur = pmCache[id];
+  if (cur && cur.dom && !dom) return false; // đã có bản đọc từ giao diện -> giữ
+  pmCache[id] = { methods, at: Date.now(), dom: !!dom };
+  const upd = { pmCache };
+  if (lastData && lastData.accounts) {
+    const a = lastData.accounts.find(x => x.id === id);
+    if (a) { a.paymentMethods = methods; a.paymentSource = 'page'; a.paymentAt = pmCache[id].at; upd.lastData = lastData; }
+  }
+  await chrome.storage.local.set(upd);
+  return true;
+}
+function wakePm(id, tabId) {
+  if (PMSCAN.waiting[id]) PMSCAN.waiting[id]();
+  else if (tabId != null && PMSCAN.waiting['tab:' + tabId]) PMSCAN.waiting['tab:' + tabId]();
+}
 function onPmProbe(msg, tabId) {
   PM_CHAIN = PM_CHAIN.then(async () => {
     if (!msg || !msg.accountId || !Array.isArray(msg.methods)) return;
     const id = 'act_' + String(msg.accountId).replace(/^act_/, '');
-    const { pmCache = {}, lastData } = await chrome.storage.local.get(['pmCache', 'lastData']);
-    pmCache[id] = { methods: msg.methods, at: Date.now() };
-    const upd = { pmCache };
-    if (lastData && lastData.accounts) {
-      const a = lastData.accounts.find(x => x.id === id);
-      if (a) { a.paymentMethods = msg.methods; a.paymentSource = 'page'; a.paymentAt = pmCache[id].at; upd.lastData = lastData; }
-    }
-    await chrome.storage.local.set(upd);
-    if (PMSCAN.waiting[id]) PMSCAN.waiting[id]();
-    else if (tabId != null && PMSCAN.waiting['tab:' + tabId]) PMSCAN.waiting['tab:' + tabId]();
+    await savePm(id, msg.methods, true);
+    wakePm(id, tabId);
   }).catch(() => {});
 }
-function openBillingTab(id) {
+// Bóc danh sách thẻ từ nội dung phản hồi GraphQL (không cần biết cấu trúc chính xác):
+// mỗi "display_string":"Visa ···· 1234" là 1 thẻ; hạn/mặc định/xác minh lấy trong đoạn lân cận.
+// Đoạn JSON của đúng object bao quanh vị trí idx (để hạn/mặc định không lẫn sang thẻ bên cạnh)
+function objectAround(text, idx) {
+  let depth = 0, start = -1;
+  for (let i = idx - 1; i >= 0; i--) { // idx là dấu " mở của khóa -> bắt đầu lùi từ ngay trước nó
+    const c = text[i];
+    if (c === '"') { // nhảy qua chuỗi (lùi)
+      let j = i - 1; while (j >= 0 && !(text[j] === '"' && text[j - 1] !== '\\')) j--; i = j; continue;
+    }
+    if (c === '}') depth++;
+    else if (c === '{') { if (depth === 0) { start = i; break; } depth--; }
+  }
+  if (start < 0) return text.slice(Math.max(0, idx - 300), idx + 300);
+  depth = 0;
+  for (let i = start; i < text.length; i++) {
+    const c = text[i];
+    if (c === '"') { let j = i + 1; while (j < text.length && !(text[j] === '"' && text[j - 1] !== '\\')) j++; i = j; continue; }
+    if (c === '{') depth++;
+    else if (c === '}') { depth--; if (depth === 0) return text.slice(start, i + 1); }
+  }
+  return text.slice(start, start + 600);
+}
+function parsePmText(text, defStr) {
+  const out = [], seen = new Set(); let m;
+  const re = /"display_string"\s*:\s*"((?:[^"\\]|\\.)*)"/g;
+  while ((m = re.exec(text))) {
+    let label; try { label = JSON.parse('"' + m[1] + '"'); } catch (_) { continue; }
+    label = label.trim();
+    if (!/\d{4}$/.test(label) || seen.has(label)) continue;
+    seen.add(label);
+    const obj = objectAround(text, m.index);
+    const em = obj.match(/"exp_month"\s*:\s*"?(\d{1,2})"?/), ey = obj.match(/"exp_year"\s*:\s*"?(\d{2,4})"?/);
+    const isDefault = /"(is_default|is_primary|isDefault|is_primary_payment_method)"\s*:\s*true/.test(obj);
+    const unverified = /"is_verified"\s*:\s*false/.test(obj);
+    out.push({ kind: 'card', label: label.replace(/\s*[*•·x]+\s*/i, ' ···· ').replace(/\s+/g, ' '),
+      sub: [em && ey ? 'HH ' + em[1] + '/' + String(ey[1]).slice(-2) : '', unverified ? 'chưa xác minh' : ''].filter(Boolean).join(' · '), isDefault });
+  }
+  const pre = /"email_address"\s*:\s*"([^"]+@[^"]+)"/g;
+  while ((m = pre.exec(text))) {
+    const key = 'pp:' + m[1]; if (seen.has(key)) continue; seen.add(key);
+    out.push({ kind: 'paypal', label: 'PayPal ' + m[1], sub: '', isDefault: /"(is_default|is_primary)"\s*:\s*true/.test(objectAround(text, m.index)) });
+  }
+  if (out.length && !out.some(x => x.isDefault)) {
+    const d = defStr ? out.find(x => x.label === String(defStr).replace(/\s*[*•·x]+\s*/i, ' ···· ').replace(/\s+/g, ' ')) : null;
+    (d || out[0]).isDefault = true;
+  }
+  out.sort((a, b) => (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0));
+  return out;
+}
+// Phản hồi GraphQL chứa thẻ (từ hook.js trên trang Thanh toán): bóc thẻ + học request để hỏi lại cho TK khác.
+function onPmGraph(p, tabId) {
+  PM_CHAIN = PM_CHAIN.then(async () => {
+    if (!p || !p.text) return;
+    const accId = p.accountId ? String(p.accountId).replace(/^act_/, '') : null;
+    const id = accId ? 'act_' + accId : null;
+    const { lastData, pmGraphReq } = await chrome.storage.local.get(['lastData', 'pmGraphReq']);
+    const a = id && lastData && lastData.accounts ? lastData.accounts.find(x => x.id === id) : null;
+    const methods = parsePmText(p.text, a ? a.payment : null);
+    if (!methods.length || !id) return;
+    await savePm(id, methods, false);
+    // Học request: body phải chứa ID TK (để thay cho TK khác); giữ bản bóc được nhiều thẻ nhất
+    if (p.req && p.req.body) {
+      try {
+        const vars = new URLSearchParams(p.req.body).get('variables') || '';
+        if (vars.includes(accId) && (!pmGraphReq || (pmGraphReq.n || 0) <= methods.length || Date.now() - (pmGraphReq.at || 0) > 86400000)) {
+          const friendly = new URLSearchParams(p.req.body).get('fb_api_req_friendly_name') || null;
+          await chrome.storage.local.set({ pmGraphReq: { url: p.req.url || null, body: p.req.body, accId, n: methods.length, friendly, at: Date.now() } });
+        }
+      } catch (_) {}
+    }
+    wakePm(id, tabId);
+  }).catch(() => {});
+}
+function openBillingTab(id, keep) {
   const accId = String(id).replace(/^act_/, '');
   const url = `https://business.facebook.com/latest/billing_hub/accounts/details/?asset_id=${accId}&placement=campaign_manager`;
   return new Promise(resolve => {
@@ -563,33 +650,72 @@ function openBillingTab(id) {
       const finish = () => {
         if (fin) return; fin = true;
         delete PMSCAN.waiting[id]; if (tid != null) delete PMSCAN.waiting['tab:' + tid];
-        setTimeout(() => { if (tid != null) chrome.tabs.remove(tid, () => void chrome.runtime.lastError); resolve(); }, 1200);
+        // chờ thêm vài giây để billing.js (đọc giao diện) kịp gửi bản chính xác hơn
+        setTimeout(() => { if (!keep && tid != null) chrome.tabs.remove(tid, () => void chrome.runtime.lastError); resolve(tid); }, keep ? 6000 : 4000);
       };
       PMSCAN.waiting[id] = finish; if (tid != null) PMSCAN.waiting['tab:' + tid] = finish;
       setTimeout(finish, 45000); // tab nền bị Chrome giảm tốc nên cho rộng thời gian
     });
   });
 }
-// Quét thẻ: mở ngầm trang Thanh toán từng TK (tab nền, không chuyển tab), đọc xong tự đóng,
-// nghỉ ngẫu nhiên 3–6s giữa các TK để không bị Facebook báo spam.
+// Hỏi thẻ của 1 TK bằng request đã học, gửi qua tab Facebook `tid` (cùng origin + cookie).
+async function replayPm(tid, req, id) {
+  const accId = String(id).replace(/^act_/, '');
+  const p = new URLSearchParams(req.body);
+  p.set('variables', (p.get('variables') || '').split(req.accId).join(accId));
+  const res = await new Promise(r => chrome.tabs.sendMessage(tid, { type: 'bmFetch', url: req.url, body: p.toString() }, x => { void chrome.runtime.lastError; r(x || null); }));
+  if (!res || !res.ok) throw new Error(res && res.error || 'no response');
+  const t = res.text || '';
+  if (/login_required|"errorSummary"/.test(t.slice(0, 500))) throw new Error('facebook error');
+  if (accId !== req.accId && t.includes(req.accId) && !t.includes(accId)) throw new Error('wrong account');
+  const { lastData } = await chrome.storage.local.get('lastData');
+  const a = lastData && lastData.accounts ? lastData.accounts.find(x => x.id === id) : null;
+  const methods = parsePmText(t, a ? a.payment : null);
+  if (!methods.length) { if (/"errors"/.test(t.slice(0, 300))) throw new Error('facebook error'); return false; }
+  await savePm(id, methods, false);
+  return true;
+}
+// Quét thẻ: lần đầu mở ngầm 1 trang Thanh toán để học request; các TK còn lại hỏi thẳng bằng
+// request ngầm (nhanh, không mở trang). Không học được / bị từ chối -> mở từng trang như cũ.
 async function scanPM(ids) {
   if (PMSCAN.running) return;
   PMSCAN.running = true; PMSCAN.stop = false;
-  const total = ids.length; let done = 0, hit = 0;
-  const report = (current, finished) => chrome.storage.local.set({ pmScan: { running: !finished, total, done, hit, current: current || null, at: Date.now() } });
+  const total = ids.length; let done = 0, hit = 0, mode = 'tab', bridge = null, bridgeFor = null, fails = 0;
+  const report = (current, finished) => chrome.storage.local.set({ pmScan: { running: !finished, total, done, hit, mode, current: current || null, at: Date.now() } });
+  const getReq = async () => (await chrome.storage.local.get('pmGraphReq')).pmGraphReq || null;
+  const cacheOf = async id => ((await chrome.storage.local.get('pmCache')).pmCache || {})[id];
   await report(null, false);
   try {
+    let req = await getReq();
     for (const id of ids) {
       if (PMSCAN.stop) break;
       await report(id, false);
-      const before = ((await chrome.storage.local.get('pmCache')).pmCache || {})[id];
-      await openBillingTab(id);
-      const after = ((await chrome.storage.local.get('pmCache')).pmCache || {})[id];
+      const before = await cacheOf(id);
+      if (req && !bridge) {
+        const tabs = await new Promise(r => chrome.tabs.query({ url: 'https://business.facebook.com/*' }, r));
+        if (tabs && tabs.length) bridge = tabs[0].id;
+        else { bridge = await openBillingTab(id, true); bridgeFor = id; }
+      }
+      let ok = false;
+      const c0 = await cacheOf(id);
+      if (bridgeFor === id && c0 && (!before || before.at !== c0.at)) ok = true; // trang cầu vừa mở đã đọc được chính TK đó
+      if (!ok && req && bridge) {
+        mode = 'api';
+        try { ok = await replayPm(bridge, req, id); fails = ok ? 0 : fails + 1; } catch (_) { fails++; }
+        if (fails >= 3) { req = null; mode = 'tab'; }
+      }
+      if (!ok && !req) {
+        mode = 'tab';
+        await openBillingTab(id, false);
+        req = await getReq();
+      }
+      const after = await cacheOf(id);
       if (after && (!before || before.at !== after.at)) hit++;
       done++;
-      if (!PMSCAN.stop && done < total) await sleep(rnd(3000, 6000));
+      if (!PMSCAN.stop && done < total) await sleep(mode === 'api' ? rnd(700, 1500) : rnd(3000, 6000));
     }
   } finally {
+    if (bridgeFor != null && bridge != null) chrome.tabs.remove(bridge, () => void chrome.runtime.lastError);
     PMSCAN.running = false;
     await report(null, true);
   }
