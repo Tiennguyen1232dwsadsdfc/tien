@@ -89,11 +89,20 @@ const COLUMNS = [
   { key: 'spent', label: 'Tổng tiêu', num: true, sort: 'spent', dyn: true, sumSpent: true, w: 120,
     cell: a => { const sp = spent(a); return sp === undefined ? '<span class="muted">…</span>' : (sp === null ? '<span class="muted">lỗi</span>' : `<span title="${esc(spentTip(a))}">${mval(a, sp)}</span>`); } },
   { key: 'accountType', label: 'Loại tài khoản', sort: 'accountType', w: 115, cell: a => esc(a.accountType || '') },
-  { key: 'payment', label: 'Thẻ thanh toán', sort: 'payment', w: 220,
-    // Trống = Facebook không trả thông tin thẻ (TK chưa thêm thẻ, hoặc không có quyền xem tài chính trong BM chủ).
-    cell: a => a.payment
-      ? `<span class="trunc" title="${esc(a.payment)}">${esc(a.payment)}</span>`
-      : '<span class="muted" title="Facebook không trả thông tin thẻ: TK chưa thêm phương thức thanh toán, hoặc bạn không có quyền xem tài chính trong BM sở hữu TK này">Chưa có thẻ</span>' },
+  { key: 'payment', label: 'Thẻ thanh toán', sort: 'payment', w: 240,
+    // Hiện TẤT CẢ phương thức (thẻ mặc định in đậm, thẻ phụ bên dưới). Trống = Facebook không trả
+    // thông tin thẻ (TK chưa thêm thẻ, hoặc không có quyền xem tài chính trong BM chủ).
+    cell: a => {
+      const pms = a.paymentMethods || [];
+      if (pms.length) {
+        const tip = pms.map(p => (p.isDefault ? '★ ' : '') + p.label + (p.sub ? ' (' + p.sub + ')' : '')).join('\n');
+        return `<div class="pm-list" title="${esc(tip)}">` + pms.map(p =>
+          `<div class="pm ${p.isDefault ? 'pm-def' : ''}"><span class="trunc">${esc(p.label)}</span>${p.isDefault ? '<span class="pm-tag">Mặc định</span>' : ''}${p.sub ? `<span class="pm-sub">${esc(p.sub)}</span>` : ''}</div>`).join('') + '</div>';
+      }
+      return a.payment
+        ? `<span class="trunc" title="${esc(a.payment)}">${esc(a.payment)}</span>`
+        : '<span class="muted" title="Facebook không trả thông tin thẻ: TK chưa thêm phương thức thanh toán, hoặc bạn không có quyền xem tài chính trong BM sở hữu TK này">Chưa có thẻ</span>';
+    } },
   { key: 'taxId', label: 'Mã số thuế', sort: 'taxId', w: 150,
     // Lấy từ "Thông tin doanh nghiệp" trên trang Thanh toán của TK (trường tax_id).
     cell: a => a.taxId
@@ -764,7 +773,7 @@ function csvCell(c, a) {
     case 'setLimit': return a.spendCap ?? '';
     case 'spent': return spent(a) ?? '';
     case 'accountType': return csv(a.accountType || '');
-    case 'payment': return csv(a.payment || '');
+    case 'payment': return csv((a.paymentMethods || []).length ? a.paymentMethods.map(p => (p.isDefault ? '[Mặc định] ' : '') + p.label + (p.sub ? ' (' + p.sub + ')' : '')).join(' | ') : (a.payment || ''));
     case 'taxId': return a.taxId ? `="${a.taxId}"` : (a.taxKnown ? 'Chưa có MST' : '');
     case 'nextBill': return a.nextBill ? shortDate(a.nextBill) : '';
     case 'hiddenAdmins': return a.hiddenAdmins ?? '';

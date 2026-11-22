@@ -17,8 +17,11 @@ const ACC_FIELDS_BASE = [
 ];
 // Trường có thể không tồn tại tùy version/tài khoản — dò trước khi dùng để không vỡ cả request.
 // tax_id* / business_name: thông tin doanh nghiệp + mã số thuế (MST) khai trên trang Thanh toán.
-const ACC_FIELDS_RISKY = ['is_prepay_account', 'users.summary(true)', 'business{id,name}', 'owner', 'tax_id', 'tax_id_status', 'tax_id_type', 'business_name'];
-const FIELD_SUPPORT_V = 2; // tăng khi thêm trường vào ACC_FIELDS_RISKY để dò lại trên máy đã cài
+// all_payment_methods: TẤT CẢ phương thức thanh toán của TK (thẻ chính + thẻ phụ, PayPal, ghi nợ, ví) — trường
+// nội bộ, token Ads Manager thường đọc được; funding_source_details chỉ cho thẻ mặc định.
+const ALL_PM = 'all_payment_methods{pm_credit_card{data{display_string,exp_month,exp_year,is_verified,credential_id}},payment_method_paypal{data{email_address,credential_id}},payment_method_direct_debits{data{display_string,status,credential_id}},payment_method_tokens{data{current_balance,type,credential_id}},payment_method_stored_balances{data{balance,credential_id}}}';
+const ACC_FIELDS_RISKY = ['is_prepay_account', 'users.summary(true)', 'business{id,name}', 'owner', 'tax_id', 'tax_id_status', 'tax_id_type', 'business_name', ALL_PM];
+const FIELD_SUPPORT_V = 3; // tăng khi thêm trường vào ACC_FIELDS_RISKY để dò lại trên máy đã cài
 
 async function supportedFields(token) {
   const { fieldSupport, fieldSupportV } = await chrome.storage.local.get(['fieldSupport', 'fieldSupportV']);
@@ -695,6 +698,28 @@ const FUND_TYPE = {
   5: 'Đơn hàng', 6: 'Hóa đơn hàng tháng', 7: 'Token', 8: 'Thanh toán ngoài', 12: 'PayPal', 13: 'PayPal',
   15: 'Nạp tiền ngoài', 17: 'Ghi nợ trực tiếp', 19: 'Ví điện tử / khác', 20: 'Số dư trả trước'
 };
+// Gom mọi phương thức thanh toán thành danh sách {label, sub, isDefault, kind}
+function paymentMethods(a) {
+  const pm = a.all_payment_methods, out = [];
+  if (!pm) return out;
+  const f = a.funding_source_details || {};
+  const defId = f.id ? String(f.id) : null, defStr = f.display_string || '';
+  const rows = (x) => (x && x.data) || [];
+  rows(pm.pm_credit_card).forEach(c => {
+    const label = c.display_string || 'Thẻ';
+    const exp = c.exp_month && c.exp_year ? `${c.exp_month}/${String(c.exp_year).slice(-2)}` : '';
+    out.push({ kind: 'card', label, sub: [exp ? 'HH ' + exp : '', c.is_verified === false ? 'chưa xác minh' : ''].filter(Boolean).join(' · '),
+      isDefault: (defId && String(c.credential_id) === defId) || (!!defStr && defStr === label) });
+  });
+  rows(pm.payment_method_paypal).forEach(p => out.push({ kind: 'paypal', label: 'PayPal ' + (p.email_address || ''), sub: '', isDefault: defId && String(p.credential_id) === defId }));
+  rows(pm.payment_method_direct_debits).forEach(d => out.push({ kind: 'debit', label: d.display_string || 'Ghi nợ trực tiếp', sub: d.status || '', isDefault: defId && String(d.credential_id) === defId }));
+  rows(pm.payment_method_tokens).forEach(t => out.push({ kind: 'token', label: (t.type || 'Ví') + (t.current_balance ? ' · ' + t.current_balance : ''), sub: '', isDefault: defId && String(t.credential_id) === defId }));
+  rows(pm.payment_method_stored_balances).forEach(b => out.push({ kind: 'balance', label: 'Số dư trả trước' + (b.balance ? ' · ' + b.balance : ''), sub: '', isDefault: defId && String(b.credential_id) === defId }));
+  if (out.length && !out.some(x => x.isDefault) && defStr) { const m = out.find(x => x.label === defStr); if (m) m.isDefault = true; }
+  // thẻ mặc định lên đầu
+  out.sort((x, y) => (y.isDefault ? 1 : 0) - (x.isDefault ? 1 : 0));
+  return out.map(x => ({ ...x, isDefault: !!x.isDefault }));
+}
 function paymentLabel(a) {
   const f = a.funding_source_details;
   if (f && f.display_string) return f.display_string;
@@ -738,6 +763,7 @@ function normalize(a) {
     minDaily: money(a.min_daily_budget, cur),
     payment: paymentLabel(a),
     paymentKnown: !!(funding && (funding.display_string || FUND_TYPE[funding.type])),
+    paymentMethods: paymentMethods(a),
     accountType: a.is_prepay_account === undefined ? '' : (a.is_prepay_account ? 'Trả trước' : 'Trả sau'),
     hiddenAdmins: a.users && a.users.summary ? a.users.summary.total_count : null,
     nextBill: null,
