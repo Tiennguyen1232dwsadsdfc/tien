@@ -242,3 +242,5 @@ tfoot .col-check, tfoot .col-tt, tfoot .col-acc { background: var(--head); }
 .pm-badge.chinh { background: var(--accent-soft); color: var(--accent-ink); }
 .pm-badge.phu { background: var(--line-soft); color: var(--muted); }
 .pm-warn { display: inline-block; width: 14px; height: 14px; line-height: 14px; text-align: center; border-radius: 50%; background: var(--warn-soft); color: var(--warn); font-size: 10px; font-weight: 800; margin-left: 4px; }
+.cap-input input { letter-spacing: .3px; font-variant-numeric: tabular-nums; }
+.cap-preview { margin-top: 6px; font-size: 14px; font-weight: 700; color: var(--accent-ink); min-height: 18px; }

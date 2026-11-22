@@ -295,7 +295,7 @@ function setupSpendCapMenu() {
   $('capSave').addEventListener('click', () => {
     if (!CAP_ACC) return;
     const cur = CAP_ACC.currency;
-    const val = Number(String($('capInput').value).replace(/[^0-9.]/g, '')) || 0;
+    const val = capParse($('capInput').value);
     if (val <= 0) { doSpendCap(CAP_ACC, 'remove', 0); return; }
     doSpendCap(CAP_ACC, 'set', ZERO_DEC.has(cur) ? Math.round(val) : Math.round(val * 100));
   });
@@ -306,6 +306,26 @@ function setupSpendCapMenu() {
     doSpendCap(CAP_ACC, 'reset', 0);
   });
   $('capInput').addEventListener('keydown', e => { if (e.key === 'Enter') $('capSave').click(); });
+  $('capInput').addEventListener('input', () => capFormatInput());
+}
+// Ô nhập tiền: tự chèn dấu chấm ngàn khi gõ (5000000 -> 5.000.000); tiền có lẻ (USD) cho phép dấu phẩy thập phân.
+function capParse(str) {
+  const t = String(str || '').replace(/\./g, '').replace(/\s/g, '').replace(',', '.');
+  const n = Number(t.replace(/[^0-9.]/g, ''));
+  return Number.isFinite(n) ? n : 0;
+}
+function capFormatInput() {
+  const el = $('capInput'), cur = CAP_ACC ? CAP_ACC.currency : 'VND';
+  const raw = el.value;
+  const zero = ZERO_DEC.has(cur);
+  let digits = raw.replace(/\./g, '').replace(/[^0-9,]/g, '');
+  if (zero) digits = digits.replace(/,/g, '');
+  let [int, dec] = digits.split(',');
+  int = (int || '').replace(/^0+(?=\d)/, '');
+  const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  el.value = dec !== undefined && !zero ? grouped + ',' + dec.slice(0, 2) : grouped;
+  const n = capParse(el.value);
+  $('capPreview').textContent = n > 0 ? `= ${fmtCur(n, cur)} ${cur}` + (zero ? '' : '') : '';
 }
 function openCapModal(acc) {
   CAP_ACC = acc;
@@ -314,8 +334,9 @@ function openCapModal(acc) {
   $('capInfo').innerHTML = `Giới hạn hiện tại: <b>${acc.spendCap != null ? fmtCur(acc.spendCap, cur) + ' ' + cur : 'chưa đặt'}</b>`
     + (acc.amountSpent != null ? ` · Đã tiêu tính vào giới hạn: <b>${fmtCur(acc.amountSpent, cur)} ${cur}</b>` : '')
     + (acc.dailyLimit ? ` · Meta cho tiêu tối đa <b>${fmtCur(acc.dailyLimit, cur)} ${cur}/ngày</b>` : '');
-  $('capInput').value = acc.spendCap == null ? '' : acc.spendCap;
+  $('capInput').value = acc.spendCap == null ? '' : String(acc.spendCap).replace('.', ',');
   $('capUnit').textContent = cur;
+  capFormatInput();
   $('capRemove').disabled = acc.spendCap == null;
   $('capReset').disabled = acc.spendCap == null;
   $('capMsg').hidden = true;
